@@ -68,7 +68,7 @@ const handleSubmit = async (e) => {
 
         <div className="w-full md:w-1/2 bg-gray-50 p-8 flex flex-col justify-center">
           <div className="flex flex-col items-center mb-6 md:hidden">
-            <img src={Logo} alt="SeaNeB Logo" className="w-40 h-20 mb-2" />
+            <img src={Logo} alt="SeaNeB Logo" className="mb-2" />
           </div>
 
           <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center md:text-left">
