@@ -76,7 +76,8 @@ export const updateBusiness = async (req, res) => {
     businessEmail,
     businessPhone,
     registrationPhone,
-    pangst
+    pangst,
+    seanebid
   } = req.body;
 
   try {
@@ -95,6 +96,7 @@ export const updateBusiness = async (req, res) => {
     business.businessPhone = businessPhone ?? business.businessPhone;
     business.registrationPhone = registrationPhone ?? business.registrationPhone;
     business.pangst = pangst ?? business.pangst;
+    business.seanebid = seanebid ?? business.seanebid;
 
     await business.save();
 
