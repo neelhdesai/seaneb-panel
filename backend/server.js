@@ -16,10 +16,13 @@ const app = express();
 app.use(express.json());
 
 // Enable CORS
-app.use(cors({
-  origin: "https://seaneb-panel.vercel.app",
+const corsOptions = {
+  origin: "https://seaneb-panel.vercel.app", // frontend URL
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
-}));
+};
+app.use(cors(corsOptions));
 
 // Connect to MongoDB
 connectDB(); // This handles the connection and logs DB name
