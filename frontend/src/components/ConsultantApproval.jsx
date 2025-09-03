@@ -92,11 +92,9 @@ export default function ConsultantApproval() {
   };
 
   const handleDeny = async (userId) => {
-    const reason = prompt("Enter reason for denial:");
-    if (!reason) return;
 
     try {
-      await api.patch(`/api/users/deny/${userId}`, { reason });
+      await api.patch(`/api/users/deny/${userId}`);
       setConsultants(prev =>
         prev.map(u => (u._id === userId ? { ...u, status: "denied" } : u))
       );
@@ -159,7 +157,7 @@ export default function ConsultantApproval() {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto p-4">
+    <div className="max-w-12xl mx-auto p-4">
       <ToastContainer position="top-right" autoClose={3000} />
       <h2 className="text-3xl font-bold mb-4 text-gray-800">Consultant Approval</h2>
 
