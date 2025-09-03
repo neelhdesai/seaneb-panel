@@ -142,7 +142,7 @@ export default function AllBusinesses() {
         businessPhone: popupData.businessPhone,
         registrationPhone: popupData.registrationPhone,
         pangst: popupData.pangst,
-        seanebid: popupData.seanebid, // ✅ added
+        seanebid: popupData.seanebid,
       };
 
       await api.patch(`/api/business/${popupData._id}`, payload);
