@@ -18,7 +18,7 @@ app.use(express.json());
 // Enable CORS
 const corsOptions = {
   origin: "https://seaneb-panel.vercel.app", // frontend URL
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS","PATCH"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 };
@@ -39,3 +39,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
+
