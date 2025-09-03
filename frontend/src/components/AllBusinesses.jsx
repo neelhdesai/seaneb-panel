@@ -142,6 +142,7 @@ export default function AllBusinesses() {
         businessPhone: popupData.businessPhone,
         registrationPhone: popupData.registrationPhone,
         pangst: popupData.pangst,
+        seanebid: popupData.seanebid, // ✅ added
       };
 
       await api.patch(`/api/business/${popupData._id}`, payload);
@@ -159,6 +160,7 @@ export default function AllBusinesses() {
       toast.error(err.response?.data?.message || "Failed to update");
     }
   };
+
 
   const columns = [
     {
@@ -235,11 +237,10 @@ export default function AllBusinesses() {
         <button
           onClick={exportToExcel}
           disabled={filtered.length === 0}
-          className={`px-4 py-2 rounded text-white ${
-            filtered.length === 0
+          className={`px-4 py-2 rounded text-white ${filtered.length === 0
               ? "bg-gray-400 cursor-not-allowed"
               : "bg-green-500 hover:bg-green-600"
-          }`}
+            }`}
         >
           Export to Excel
         </button>
@@ -288,8 +289,8 @@ export default function AllBusinesses() {
               {popupData.type === "consultant"
                 ? "Consultant Details"
                 : popupData.type === "edit"
-                ? "Edit Business"
-                : "Business Details"}
+                  ? "Edit Business"
+                  : "Business Details"}
             </h3>
 
             {/* Consultant Details */}
@@ -344,6 +345,15 @@ export default function AllBusinesses() {
                   className="w-full border p-2 rounded mb-1"
                   disabled={isReadonly}
                 />
+                <label>Seanebid</label>
+                <input
+                  type="text"
+                  value={popupData.seanebid || ""}
+                  onChange={(e) => handleChange(e, "seanebid")}
+                  className="w-full border p-2 rounded mb-1"
+                  disabled={isReadonly}
+                />
+
               </div>
             )}
 
