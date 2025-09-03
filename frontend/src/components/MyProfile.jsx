@@ -127,9 +127,7 @@ export default function MyProfile() {
                                     value={`${profile.approvedBy?.name} (${profile.approvedBy?.email})`}
                                 />
                             )}
-                            {profile.status === "denied" && (
-                                <ProfileField label="Denied Reason" value={profile.deniedReason} />
-                            )}
+                           
                         </>
                     )}
                 </div>
