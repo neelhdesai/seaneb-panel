@@ -7,6 +7,7 @@ import authRoutes from "./routes/auth.js";
 import businessRoutes from "./routes/business.js";
 import connectDB from './db/db.js';
 import "./jobs/profileUpdateJob.js"; 
+import healthRoutes from "./routes/health.js"
 
 dotenv.config();
 const app = express();
@@ -28,6 +29,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/business", businessRoutes);
 app.use("/api/changepassword", changePasswordRoutes);
+app.use("/api/health", healthRoutes);
 
 // Server Listen
 const PORT = process.env.PORT || 3000;
