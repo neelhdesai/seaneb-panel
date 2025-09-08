@@ -20,7 +20,7 @@ app.use(express.json());
 
 // Enable CORS
 app.use(cors({
-  origin: "https://seaneb-panel.vercel.app/",
+  origin: "https://seaneb-panel.vercel.app",
   credentials: true,
 }));
 
