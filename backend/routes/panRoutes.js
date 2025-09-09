@@ -1,9 +1,10 @@
 import express from "express";
 import { verifyPan } from "../controllers/panController.js";
+import {initiatePanVerification, advancePanVerification} from "../controllers/cashfreepan.js"
 
 const router = express.Router();
 
-// POST /api/pan/verify
-router.post("/verify", verifyPan);
+router.post("/verify", initiatePanVerification)
+router.post("/advance", advancePanVerification); 
 
 export default router;

@@ -119,6 +119,13 @@ export default function MyProfile() {
             toast.error("Please verify your new mobile number first");
             return;
         }
+
+        // ✅ Bank account match validation
+        if (editData.bankAccount !== editData.confirmBankAccount) {
+            toast.error("Bank account numbers do not match");
+            return;
+        }
+
         try {
             const res = await api.put("/api/users/profile", editData);
             setProfile(res.data.user);
@@ -128,6 +135,7 @@ export default function MyProfile() {
             toast.error(err.response?.data?.message || "Failed to update profile");
         }
     };
+
 
     const isDataChanged = () => {
         if (!profile) return false;
@@ -170,10 +178,10 @@ export default function MyProfile() {
                         value={
                             <span
                                 className={`inline-block px-3 py-1 rounded-full text-white text-sm font-medium ${profile.status === "approved"
-                                        ? "bg-green-500"
-                                        : profile.status === "pending"
-                                            ? "bg-yellow-500"
-                                            : "bg-red-500"
+                                    ? "bg-green-500"
+                                    : profile.status === "pending"
+                                        ? "bg-yellow-500"
+                                        : "bg-red-500"
                                     }`}
                             >
                                 {profile.status}
@@ -181,7 +189,8 @@ export default function MyProfile() {
                         }
                     />
                     <ProfileField label="Consultant PAN" value={profile.consultantPan || "-"} />
-                    <ProfileField label="UPI" value={profile.upi || "-"} />
+                    <ProfileField label="Bank A/c No." value={profile.bankAccount || "-"} />
+                    <ProfileField label="IFSC" value={profile.ifsc || "-"} />
                 </div>
             </div>
 
@@ -197,14 +206,37 @@ export default function MyProfile() {
 
                         <div className="space-y-4">
                             <InputField label="Name" type="text" value={editData.name || ""} disabled />
-                            <InputField label="Email" type="email" value={editData.email || ""} onChange={(e) => setEditData({ ...editData, email: e.target.value })} />
-                            <InputField label="Mobile" type="text" value={editData.mobileNumber || ""} onChange={(e) => handleMobileChange(e.target.value)} />
                             <InputField
-                                label="UPI"
-                                type="text"
-                                value={editData.upi || profile.upi || ""}
-                                onChange={(e) => setEditData({ ...editData, upi: e.target.value })}
+                                label="Email"
+                                type="email"
+                                value={editData.email || ""}
+                                onChange={(e) => setEditData({ ...editData, email: e.target.value })}
                             />
+                            <InputField
+                                label="Mobile"
+                                type="text"
+                                value={editData.mobileNumber || ""}
+                                onChange={(e) => handleMobileChange(e.target.value)}
+                            />
+                            <InputField
+                                label="Bank Account Number"
+                                type="text"
+                                value={editData.bankAccount || ""}
+                                onChange={(e) => setEditData({ ...editData, bankAccount: e.target.value })}
+                            />
+                            <InputField
+                                label="Confirm Bank Account Number"
+                                type="text"
+                                value={editData.confirmBankAccount || ""}
+                                onChange={(e) => setEditData({ ...editData, confirmBankAccount: e.target.value })}
+                            />
+                            <InputField
+                                label="IFSC Code"
+                                type="text"
+                                value={editData.ifsc || ""}
+                                onChange={(e) => setEditData({ ...editData, ifsc: e.target.value })}
+                            />
+
 
                             {/* OTP Section */}
                             {editData.mobileNumber !== profile.mobileNumber && !mobileVerified && (

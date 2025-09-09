@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Link } from "react-router"; 
+import { Link } from "react-router";
 import { toast } from "react-toastify";
 import api from "../lib/api";
 import {
@@ -8,7 +8,6 @@ import {
   CheckCircle,
   Edit2,
   Send,
-  UserCheck,
   Mail,
   Lock,
   CreditCard,
@@ -25,9 +24,9 @@ export default function ConsultantRegister() {
     name: "",
     email: "",
     mobileNumber: "",
+    confirmMobileNumber: "",
     password: "",
     consultantPan: "",
-    consultantUpiId: "",
   });
 
   const [errors, setErrors] = useState({});
@@ -67,14 +66,24 @@ export default function ConsultantRegister() {
   }, [otpSent, resendTimer]);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    setErrors({ ...errors, [e.target.name]: "" });
-  };
+    let { name, value } = e.target;
 
+    if (name === "consultantPan") {
+      value = value.toUpperCase().replace(/[^A-Z0-9]/g, ""); // PAN must be uppercase alphanumeric
+    }
+
+    setFormData({ ...formData, [name]: value });
+    setErrors({ ...errors, [name]: "" });
+  };
 
   const sendOtp = async () => {
     if (!/^[6-9]\d{9}$/.test(formData.mobileNumber)) {
       setErrors({ ...errors, mobileNumber: "Enter valid mobile number" });
+      return;
+    }
+
+    if (formData.mobileNumber !== formData.confirmMobileNumber) {
+      setErrors({ ...errors, confirmMobileNumber: "Mobile numbers do not match" });
       return;
     }
 
@@ -84,16 +93,14 @@ export default function ConsultantRegister() {
     }
 
     try {
-      // 🚀 Skip API call for test number
       if (formData.mobileNumber === TEST_MOBILE) {
         toast.success(`Test OTP sent! Use ${TEST_OTP}`);
         setOtpSent(true);
         setAttempts((prev) => prev + 1);
-        setResendTimer(60); // test: 1 minute timer
+        setResendTimer(60);
         return;
       }
 
-      // ✅ Check if mobile is already registered
       const checkRes = await api.post("/api/users/check-mobile", {
         mobileNumber: formData.mobileNumber,
       });
@@ -103,7 +110,6 @@ export default function ConsultantRegister() {
         return;
       }
 
-      // ✅ Send OTP if mobile is available
       await api.post("/api/whatsapp/sendOtp", {
         mobile: formData.mobileNumber,
       });
@@ -119,7 +125,6 @@ export default function ConsultantRegister() {
 
   const verifyOtp = async () => {
     try {
-      // 🚀 Handle test case
       if (formData.mobileNumber === TEST_MOBILE) {
         if (otp === TEST_OTP) {
           toast.success("Test mobile verified!");
@@ -131,21 +136,26 @@ export default function ConsultantRegister() {
         return;
       }
 
-      // ✅ Normal flow
       const res = await api.post("/api/whatsapp/verifyOtp", {
         mobile: formData.mobileNumber,
         otp,
       });
+
+
+
 
       if (res.data.success) {
         toast.success("Mobile verified!");
         setVerifiedMobile(true);
         setStep(2);
       } else toast.error("Invalid OTP");
-    } catch {
+    } catch (err) {
       toast.error("OTP verification failed");
+      console.log(err);
+
     }
   };
+
 
   const verifyPAN = async (pan) => {
     if (!isValidPAN(pan)) {
@@ -165,7 +175,7 @@ export default function ConsultantRegister() {
     }
     try {
       setLoading(true);
-      const res = await api.post("/api/pan/verify", { pan });
+      const res = await api.post("/api/pan/verify-cashfree", { pan });
       if (!res.data.success) {
         setErrors((prev) => ({ ...prev, consultantPan: "Invalid PAN" }));
         setPanVerified(false);
@@ -197,23 +207,36 @@ export default function ConsultantRegister() {
         newErrors.mobileNumber = "Mobile number is required *";
       else if (!/^[6-9]\d{9}$/.test(formData.mobileNumber))
         newErrors.mobileNumber = "Invalid mobile number";
+
+      if (!formData.confirmMobileNumber)
+        newErrors.confirmMobileNumber = "Confirm mobile number is required *";
+      else if (formData.mobileNumber !== formData.confirmMobileNumber)
+        newErrors.confirmMobileNumber = "Mobile numbers do not match";
+
       else if (!verifiedMobile)
         newErrors.mobileNumber = "Please verify your mobile number via OTP";
     }
     if (step === 2) {
-      if (!formData.consultantPan)
-        newErrors.consultantPan = "PAN is required *";
-      else if (!isValidPAN(formData.consultantPan))
+      if (!formData.consultantPan) {
+        newErrors.consultantPan = "PAN is required";
+      } else if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formData.consultantPan)) {
         newErrors.consultantPan = "Enter valid PAN format (ABCDE1234F)";
-      else if (panVerified !== true)
-        newErrors.consultantPan = "Please verify a valid PAN";
-      if (!formData.email) newErrors.email = "Email is required *";
-      else if (!/.+@.+\..+/.test(formData.email))
-        newErrors.email = "Invalid email address";
-      if (!formData.password || formData.password.length < 6)
+      }
+
+      if (!formData.email) {
+        newErrors.email = "Email is required";
+      } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+        newErrors.email = "Enter a valid email address";
+      }
+
+      if (!formData.password) {
+        newErrors.password = "Password is required";
+      } else if (formData.password.length < 6) {
         newErrors.password = "Password must be at least 6 characters";
+      }
     }
-    if (step === 4 && !agreed)
+
+    if (step === 3 && !agreed)
       newErrors.agreed = "You must agree to the terms and conditions to submit";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -223,10 +246,10 @@ export default function ConsultantRegister() {
     if (validateStep()) setStep(step + 1);
   };
   const handleBack = () => {
-    // Prevent going back to Step 1 if mobile is verified
-    if (step === 2 && verifiedMobile) return;
-    setStep(step - 1);
+    if (step === 2) return; // 👈 Prevent going back to Step 1
+    setStep((prev) => Math.max(prev - 1, 1));
   };
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -247,9 +270,9 @@ export default function ConsultantRegister() {
         name: "",
         email: "",
         mobileNumber: "",
+        confirmMobileNumber: "",
         password: "",
         consultantPan: "",
-        consultantUpiId: "",
       });
       setAgreed(false);
       setStep(1);
@@ -280,13 +303,13 @@ export default function ConsultantRegister() {
           <img src="./seaneb-offers.png" alt="Logo" className="h-16 w-auto" />
         </div>
         <h2 className="text-2xl font-bold mb-6 text-gray-800 text-center">
-          Consultant Registration - Step {step} of 4
+          Consultant Registration - Step {step} of 3
         </h2>
 
         {/* Stepper */}
         <div className="flex justify-center mb-8 overflow-x-auto">
           <div className="flex items-center space-x-2 sm:space-x-4">
-            {[1, 2, 3, 4].map((num, idx) => (
+            {[1, 2, 3].map((num, idx) => (
               <div key={num} className="flex items-center">
                 <div
                   className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold text-base sm:text-lg transition ${step === num
@@ -298,7 +321,7 @@ export default function ConsultantRegister() {
                 >
                   {step > num ? <CheckCircle size={18} /> : num}
                 </div>
-                {idx < 3 && (
+                {idx < 2 && (
                   <div
                     className={`w-6 sm:w-10 h-1 mx-1 sm:mx-2 transition ${step > num ? "bg-green-500" : "bg-gray-300"
                       }`}
@@ -320,6 +343,7 @@ export default function ConsultantRegister() {
           {/* Step 1: Mobile + OTP */}
           {step === 1 && (
             <div className="flex flex-col gap-4">
+              {/* Mobile Number */}
               <label className="block text-gray-700 font-medium text-base">
                 Mobile Number <span className="text-red-500">*</span>
               </label>
@@ -344,21 +368,38 @@ export default function ConsultantRegister() {
                     }`}
                   disabled={otpSent}
                 />
-                {otpSent && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOtpSent(false);
-                      setVerifiedMobile(false);
-                      setOtp("");
-                    }}
-                    className="flex items-center text-blue-600 font-medium gap-1 text-sm sm:text-base"
-                  >
-                    <Edit2 size={16} /> Edit
-                  </button>
-                )}
               </div>
               {renderError("mobileNumber")}
+
+              {/* Confirm Mobile Number */}
+              {!verifiedMobile && (
+                <>
+                  <label className="block text-gray-700 font-medium text-base">
+                    Confirm Mobile Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="confirmMobileNumber"
+                    value={formData.confirmMobileNumber}
+                    onChange={(e) =>
+                      handleChange({
+                        target: {
+                          name: "confirmMobileNumber",
+                          value: e.target.value.replace(/\D/g, ""),
+                        },
+                      })
+                    }
+                    maxLength={10}
+                    placeholder="Re-enter mobile number"
+                    className={`flex-1 border rounded-md px-4 py-2 text-base sm:text-lg ${verifiedMobile
+                      ? "bg-gray-100 text-gray-500 cursor-not-allowed border-green-400"
+                      : "border-gray-300"
+                      }`}
+                    disabled={otpSent}
+                  />
+                  {renderError("confirmMobileNumber")}
+                </>
+              )}
 
               {otpSent && (
                 <div className="mt-4 space-y-3">
@@ -422,238 +463,179 @@ export default function ConsultantRegister() {
                   Login
                 </Link>
               </p>
-
             </div>
           )}
 
-          {/* Step 2: PAN + Email + Password */}
+          {/* Step 2: PAN, Email, Password */}
           {step === 2 && (
             <div className="flex flex-col gap-4">
-              {/* PAN Number */}
-              <div className="flex items-center gap-2">
-                <CreditCard size={20} />
-                <span className="font-medium text-gray-700">PAN Number *</span>
-              </div>
-              <div className="flex gap-2">
+              <label className="block text-gray-700 font-medium text-base">
+                PAN Number <span className="text-red-500">*</span>
+              </label>
+              <div className="flex gap-2 items-center">
                 <input
                   type="text"
                   name="consultantPan"
                   value={formData.consultantPan}
                   onChange={handleChange}
                   placeholder="ABCDE1234F"
-                  className={`flex-1 border rounded-md px-4 py-2 text-base sm:text-lg ${panVerified
+                  maxLength={10}
+                  disabled={!!formData.name} // Disable when name exists
+                  className={`w-full border rounded-md px-4 py-2 uppercase ${panVerified
                     ? "border-green-500 bg-gray-100 text-gray-500 cursor-not-allowed"
-                    : "border-gray-300"
+                    : errors.consultantPan
+                      ? "border-red-500"
+                      : ""
                     }`}
-                  disabled={panVerified} // Disable input after verification
                 />
-                {/* Show Verify button only if not verified */}
-                {!panVerified && (
+
+                {/* Show Verify if not verified */}
+                {!formData.name && (
                   <button
                     type="button"
                     onClick={() => verifyPAN(formData.consultantPan)}
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-2 rounded-md font-medium flex items-center gap-1"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
                   >
-                    <CheckCircle size={16} /> Verify
+                    Verify
+                  </button>
+                )}
+
+                {/* Show Edit if already verified */}
+                {formData.name && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData({ ...formData, name: "" });
+                      setPanVerified(false);
+                    }}
+                    className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-md"
+                  >
+                    Edit
                   </button>
                 )}
               </div>
               {renderError("consultantPan")}
-
-              {/* Display Verified Name */}
-              {panVerified && (
-                <div className="mt-2">
-                  <label className="block text-gray-700 font-medium mb-1">
-                    Verified Name
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    readOnly
-                    className="w-full border border-gray-300 bg-gray-100 text-gray-600 rounded-md px-4 py-2 cursor-not-allowed"
-                  />
-                </div>
-              )}
-
-              {/* Email */}
-              <div className="flex items-center gap-2 mt-4">
-                <Mail size={20} />
-                <span className="font-medium text-gray-700">Email *</span>
-              </div>
+              <label className="block text-gray-700 font-medium text-base">
+                Name (as per PAN)
+              </label>
               <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="your@email.com"
-                className="border rounded-md px-4 py-2 text-base sm:text-lg"
+                type="text"
+                name="name"
+                value={formData.name}
+                readOnly
+                className="w-full border rounded-md px-4 py-2 bg-gray-100 text-gray-500 cursor-not-allowed"
               />
+
+              <label className="block text-gray-700 font-medium text-base">
+                Email <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="Enter your email"
+                  className="w-full border rounded-md px-4 py-2"
+                />
+                <Mail className="absolute right-3 top-3 text-gray-400" size={18} />
+              </div>
               {renderError("email")}
 
-              {/* Password */}
-              <div className="flex items-center gap-2 mt-4">
-                <Lock size={20} />
-                <span className="font-medium text-gray-700">Password *</span>
-              </div>
+              <label className="block text-gray-700 font-medium text-base">
+                Password <span className="text-red-500">*</span>
+              </label>
               <div className="relative">
+                <Lock className="absolute left-3 top-3 text-gray-400" size={18} />
                 <input
                   type={showPassword ? "text" : "password"}
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  placeholder="Enter password"
-                  className="w-full border rounded-md px-4 py-2 text-base sm:text-lg pr-10"
+                  placeholder="Min 6 characters"
+                  className="w-full border rounded-md px-10 py-2 pr-10"
                 />
-                <span
-                  className="absolute right-3 top-2.5 cursor-pointer"
+                <button
+                  type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 text-gray-400"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </span>
+                </button>
               </div>
               {renderError("password")}
 
-              {/* Navigation Buttons */}
-              {/* Navigation Buttons */}
-              <div className="flex justify-between mt-4">
-                {step > 2 && (
-                  <button
-                    type="button"
-                    onClick={handleBack}
-                    className="px-6 py-2 border rounded-md font-medium hover:bg-gray-100 transition"
-                  >
-                    Back
-                  </button>
-                )}
-                <button
-                  type={step === 4 ? "submit" : "button"}
-                  onClick={step !== 4 ? handleNext : undefined}
-                  disabled={loading}
-                  className={`px-6 py-2 rounded-md font-semibold transition 
-      ${step === 4
-                      ? "bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white flex items-center justify-center gap-2"
-                      : "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-                    }`}
-                >
-                  {step === 4 ? (
-                    loading ? (
-                      "Submitting..."
-                    ) : (
-                      <>
-                        Submit <FileText size={18} />
-                      </>
-                    )
-                  ) : (
-                    "Next"
-                  )}
-                </button>
-              </div>
             </div>
           )}
 
-          {/* Step 3: UPI */}
+
+
+          {/* Step 3: Review & Submit */}
           {step === 3 && (
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-2">
-                <DollarSign size={20} />{" "}
-                <span className="font-medium text-gray-700">
-                  UPI ID (Optional)
-                </span>
-              </div>
-              <input
-                type="text"
-                name="consultantUpiId"
-                value={formData.consultantUpiId}
-                onChange={handleChange}
-                placeholder="example@upi"
-                className="border rounded-md px-4 py-2 text-base sm:text-lg"
-              />
-              <div className="flex justify-between mt-4">
-                <button
-                  type="button"
-                  onClick={handleBack}
-                  className="px-6 py-2 border rounded-md font-medium hover:bg-gray-100 transition"
-                >
-                  Back
-                </button>
-                <button
-                  type="button"
-                  onClick={handleNext}
-                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-md font-semibold transition"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 4: Review + Terms + Submit */}
-          {step === 4 && (
-            <div className="flex flex-col gap-4">
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">
                 Review Your Details
               </h3>
-              <div className="border border-gray-200 rounded-md p-4 bg-gray-50 space-y-2">
+              <div className="bg-gray-50 p-4 rounded-lg space-y-2 text-gray-700">
                 <p>
-                  <strong>Name:</strong> {formData.name || "Not Provided"}
+                  <strong>Mobile:</strong> {formData.mobileNumber}
                 </p>
                 <p>
-                  <strong>Mobile:</strong>{" "}
-                  {formData.mobileNumber || "Not Provided"}
+                  <strong>PAN:</strong> {formData.consultantPan}
                 </p>
                 <p>
-                  <strong>Email:</strong> {formData.email || "Not Provided"}
+                  <strong>Email:</strong> {formData.email}
                 </p>
                 <p>
-                  <strong>PAN:</strong>{" "}
-                  {formData.consultantPan || "Not Provided"}
+                  <strong>Name:</strong> {formData.name}
                 </p>
-                <p>
-                  <strong>UPI ID:</strong>{" "}
-                  {formData.consultantUpiId || "Not Provided"}
-                </p>
+
               </div>
 
-              {/* Terms & Conditions */}
-              <label className="flex items-center gap-2 mt-4">
+              <div className="mt-4 flex items-center">
                 <input
                   type="checkbox"
                   checked={agreed}
-                  onChange={() => setAgreed(!agreed)}
-                  className="w-5 h-5 accent-blue-600"
+                  onChange={(e) => setAgreed(e.target.checked)}
+                  className="mr-2"
                 />
-                I agree to the{" "}
-                <span className="text-blue-600 underline cursor-pointer">
-                  Terms & Conditions
+                <span className="text-sm text-gray-700">
+                  I agree to the terms and conditions
                 </span>
-              </label>
-              {renderError("agreed")}
-
-              {/* Navigation Buttons */}
-              <div className="flex justify-between mt-4">
-                <button
-                  type="button"
-                  onClick={handleBack}
-                  className="px-6 py-2 border rounded-md font-medium hover:bg-gray-100 transition"
-                >
-                  Back
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-6 py-2 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white rounded-md font-semibold transition flex items-center justify-center gap-2"
-                >
-                  {loading ? (
-                    "Submitting..."
-                  ) : (
-                    <>
-                      Submit <FileText size={18} />
-                    </>
-                  )}
-                </button>
               </div>
+              {renderError("agreed")}
             </div>
           )}
+
+          <div className="flex justify-between items-center pt-4">
+            {step > 1 && (
+              <button
+                type="button"
+                onClick={handleBack}
+                className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-md"
+              >
+                Back
+              </button>
+            )}
+            {step > 1 && step < 3 && ( // 👈 Next only from Step 2 & 3
+              <button
+                type="button"
+                onClick={handleNext}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md"
+              >
+                Next
+              </button>
+            )}
+            {step === 3 && (
+              <button
+                type="submit"
+                disabled={loading}
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-md"
+              >
+                {loading ? "Submitting..." : "Submit"}
+              </button>
+            )}
+          </div>
         </form>
       </div>
     </div>

@@ -169,8 +169,8 @@ export default function ForgotPassword() {
                             <input
                                 type="text"
                                 value={otp}
-                                onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 5))} // max 5 digits
-                                maxLength={5}
+                                onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))} // max 5 digits
+                                maxLength={6}
                                 className="peer w-full border-b-2 border-gray-300 bg-transparent py-2 focus:border-green-600 outline-none"
                                 placeholder=" "
                             />

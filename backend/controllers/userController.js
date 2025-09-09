@@ -24,7 +24,6 @@ export const createUser = async (req, res) => {
       password,
       role,
       consultantPan,
-      consultantUpiId
     } = req.body;
 
     // ✅ Check if mobile is verified in OTP DB
@@ -45,7 +44,6 @@ export const createUser = async (req, res) => {
       role: role || "consultant",
       status: "pending", // always pending until admin approves/denies
       consultantPan,
-      consultantUpiId
     });
 
     await user.save();
@@ -227,9 +225,9 @@ export const updateProfile = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const { name, email, mobileNumber, consultantPan, consultantUpiId } = req.body;
+    const { name, email, mobileNumber, consultantPan, bankAccount, confirmBankAccount, ifsc } = req.body;
 
-    // 🔎 Check for duplicate email (if changed)
+    // 🔎 Check duplicate email
     if (email && email !== user.email) {
       const existingEmail = await User.findOne({ email });
       if (existingEmail) {
@@ -237,7 +235,7 @@ export const updateProfile = async (req, res) => {
       }
     }
 
-    // 🔎 Check for duplicate mobile (if changed)
+    // 🔎 Check duplicate mobile
     if (mobileNumber && mobileNumber !== user.mobileNumber) {
       const existingMobile = await User.findOne({ mobileNumber });
       if (existingMobile) {
@@ -245,7 +243,7 @@ export const updateProfile = async (req, res) => {
       }
     }
 
-    // 🔎 Consultant-specific duplicate check for PAN
+    // 🔎 PAN duplicate check (only for consultants)
     if (user.role === "consultant" && consultantPan && consultantPan !== user.consultantPan) {
       const existingPan = await User.findOne({ consultantPan });
       if (existingPan) {
@@ -253,18 +251,23 @@ export const updateProfile = async (req, res) => {
       }
     }
 
-    // ✅ Instead of updating immediately, store in pendingUpdate
+    // ✅ Bank Account confirmation
+    if (bankAccount && confirmBankAccount && bankAccount !== confirmBankAccount) {
+      return res.status(400).json({ message: "Bank account numbers do not match" });
+    }
+
+    // ✅ Save in pendingUpdate
     user.pendingUpdate = {
       name: name || user.name,
       email: email || user.email,
       mobileNumber: mobileNumber || user.mobileNumber,
       consultantPan: user.role === "consultant" ? (consultantPan || user.consultantPan) : undefined,
-      consultantUpiId: user.role === "consultant" ? (consultantUpiId || user.consultantUpiId) : undefined,
+      bankAccount: bankAccount || user.bankAccount,
+      ifsc: ifsc || user.ifsc,
     };
     user.pendingUpdateAt = new Date();
 
     await user.save();
-
     await user.populate("approvedBy", "name email");
 
     res.json({
@@ -277,9 +280,10 @@ export const updateProfile = async (req, res) => {
         role: user.role,
         status: user.status,
         consultantPan: user.consultantPan,
-        consultantUpiId: user.consultantUpiId,
+        bankAccount: user.bankAccount,
+        ifsc: user.ifsc,
         approvedBy: user.approvedBy,
-        pendingUpdate: user.pendingUpdate, // 👈 show pending updates in response
+        pendingUpdate: user.pendingUpdate,
       },
     });
   } catch (err) {

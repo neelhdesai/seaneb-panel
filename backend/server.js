@@ -18,9 +18,12 @@ const app = express();
 // Middleware
 app.use(express.json());
 
-// Enable CORS
 app.use(cors({
-  origin: "https://seaneb-panel.vercel.app",
+  origin: [
+    "https://seaneb-panel.vercel.app", // production
+    "http://localhost:5173",           // local frontend
+    "http://localhost:8080"            // another local frontend
+  ],
   credentials: true,
 }));
 

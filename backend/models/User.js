@@ -39,12 +39,16 @@ const userSchema = new mongoose.Schema({
     match: /^[A-Z0-9]{10}$/,
     required: false, // ✅ optional now
   },
-  consultantUpiId: {
+ bankAccount: {
     type: String,
-    match: /^[\w.\-_]{2,256}@[a-zA-Z]{2,64}$/,
-    required: false, // ✅ optional now
+    match: [/^\d{9,18}$/, "Please enter a valid bank account number"], // 9–18 digits
+    required: false,
   },
-
+  ifsc: {
+    type: String,
+    match: [/^[A-Z]{4}0[A-Z0-9]{6}$/, "Please enter a valid IFSC code"], // RBI format
+    required: false,
+  },
 
   // Account status & workflow
   isActive: {
