@@ -175,7 +175,7 @@ export default function ConsultantRegister() {
     }
     try {
       setLoading(true);
-      const res = await api.post("/api/pan/verify-cashfree", { pan });
+      const res = await api.post("/api/pan/verify", { pan });
       if (!res.data.success) {
         setErrors((prev) => ({ ...prev, consultantPan: "Invalid PAN" }));
         setPanVerified(false);
