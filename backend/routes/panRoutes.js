@@ -4,7 +4,7 @@ import {initiatePanVerification, advancePanVerification} from "../controllers/ca
 
 const router = express.Router();
 
-router.post("/verify", initiatePanVerification)
+router.post("/verify", verifyPan)
 router.post("/advance", advancePanVerification); 
 
 export default router;
