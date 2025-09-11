@@ -140,7 +140,7 @@ export default function LoginPage() {
             >
               Forgot Password?
             </Link>
-            <p className="text-gray-600 text-sm">
+            {/* <p className="text-gray-600 text-sm">
               Don't have an account?{" "}
               <Link
                 to="/consultant"
@@ -148,7 +148,7 @@ export default function LoginPage() {
               >
                 Register as Consultant
               </Link>
-            </p>
+            </p> */}
           </div>
 
           {/* Footer */}
