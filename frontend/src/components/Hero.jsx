@@ -14,11 +14,10 @@ export default function Hero() {
       <div className="absolute inset-0 bg-black/40 -z-0"></div>
 
       {/* Hero Card */}
-      <div className="relative z-10 backdrop-blur-md rounded-2xl p-10 max-w-2xl text-center">
+      <div className="relative z-10 rounded-2xl p-10 max-w-2xl text-center">
         <img
           src="./seaneb-logo-white.png"
           alt="Logo"
-          className="h-20 w-auto mx-auto mb-6"
         />
         <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4">
           Become a Consultant
