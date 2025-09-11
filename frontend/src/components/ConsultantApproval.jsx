@@ -74,39 +74,25 @@ export default function ConsultantApproval() {
     handleFilter(search, status);
   };
 
-  // Approve / Deny
-  const handleApprove = async (userId) => {
+  const updateStatus = async (userId, newStatus) => {
     try {
-      await api.patch(`/api/users/approve/${userId}`);
+      await api.patch(`/api/users/status/${userId}`, { status: newStatus });
+
+      // Update state everywhere
       setConsultants(prev =>
-        prev.map(u => (u._id === userId ? { ...u, status: "approved" } : u))
+        prev.map(u => (u._id === userId ? { ...u, status: newStatus } : u))
       );
       setFilteredConsultants(prev =>
-        prev.map(u => (u._id === userId ? { ...u, status: "approved" } : u))
+        prev.map(u => (u._id === userId ? { ...u, status: newStatus } : u))
       );
-      toast.success("Consultant approved successfully");
-      setSelectedConsultant(null);
+      setSelectedConsultant(prev => ({ ...prev, status: newStatus }));
+
+      toast.success(`Status updated to ${newStatus}`);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to approve");
+      toast.error(err.response?.data?.message || "Failed to update status");
     }
   };
 
-  const handleDeny = async (userId) => {
-
-    try {
-      await api.patch(`/api/users/deny/${userId}`);
-      setConsultants(prev =>
-        prev.map(u => (u._id === userId ? { ...u, status: "denied" } : u))
-      );
-      setFilteredConsultants(prev =>
-        prev.map(u => (u._id === userId ? { ...u, status: "denied" } : u))
-      );
-      toast.success("Consultant denied successfully");
-      setSelectedConsultant(null);
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to deny");
-    }
-  };
 
   // Export to Excel
   const exportToExcel = () => {
@@ -144,15 +130,16 @@ export default function ConsultantApproval() {
       cell: row => (
         <span
           className={`px-2 py-1 rounded text-white ${row.status === "approved"
-            ? "bg-green-500"
-            : row.status === "denied"
-              ? "bg-red-500"
-              : "bg-gray-500"
+              ? "bg-green-500"
+              : row.status === "denied"
+                ? "bg-red-500"
+                : "bg-gray-500"
             }`}
         >
-          {row.status}
+          {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
         </span>
       ),
+
     },
   ];
 
@@ -254,8 +241,16 @@ export default function ConsultantApproval() {
                 value={selectedConsultant.status}
                 onChange={async (e) => {
                   const newStatus = e.target.value;
+
                   try {
-                    await api.patch(`/api/users/status/${selectedConsultant._id}`, { status: newStatus });
+                    if (newStatus === "approved") {
+                      await api.patch(`/api/users/approve/${selectedConsultant._id}`);
+                    } else if (newStatus === "denied") {
+                      await api.patch(`/api/users/deny/${selectedConsultant._id}`);
+                    } else {
+                      await api.patch(`/api/users/status/${selectedConsultant._id}`, { status: newStatus });
+                    }
+
                     setConsultants(prev =>
                       prev.map(u => u._id === selectedConsultant._id ? { ...u, status: newStatus } : u)
                     );
@@ -274,6 +269,7 @@ export default function ConsultantApproval() {
                 <option value="approved">Approved</option>
                 <option value="denied">Denied</option>
               </select>
+
             </div>
           </div>
         </div>
