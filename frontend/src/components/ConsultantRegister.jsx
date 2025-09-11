@@ -454,15 +454,7 @@ export default function ConsultantRegister() {
                 </button>
               )}
 
-              <p className="text-gray-600 text-sm mt-4 text-center">
-                Already registered?{" "}
-                <Link
-                  to="/login"
-                  className="text-blue-600 hover:underline font-medium"
-                >
-                  Login
-                </Link>
-              </p>
+             
             </div>
           )}
 
