@@ -1,6 +1,6 @@
 import User from "../models/User.js";
 import sendEmail from "../utils/email.js"
-import { approvalTemplate, denialTemplate } from "../utils/emailTemplates.js";
+import { approvalTemplate, denialTemplate, adminNewConsultantTemplate } from "../utils/emailTemplates.js";
 import OtpLog from "../models/OtpLog.js";
 
 export const getMe = async (req, res) => {
@@ -17,16 +17,8 @@ export const getMe = async (req, res) => {
 
 export const createUser = async (req, res) => {
   try {
-    const {
-      name,
-      email,
-      mobileNumber,
-      password,
-      role,
-      consultantPan,
-    } = req.body;
+    const { name, email, mobileNumber, password, role, consultantPan } = req.body;
 
-    // ✅ Check if mobile is verified in OTP DB
     const otpRecord = await OtpLog.findOne({ mobile: mobileNumber, verified: true });
     if (!otpRecord) {
       return res.status(400).json({
@@ -35,23 +27,27 @@ export const createUser = async (req, res) => {
       });
     }
 
-    // ✅ Proceed with user creation
     const user = new User({
       name,
       email,
       mobileNumber,
       password,
       role: role || "consultant",
-      status: "pending", // always pending until admin approves/denies
+      status: "pending",
       consultantPan,
     });
 
     await user.save();
-
-    // ✅ Optional: clear OTP record once used (so they can’t reuse it)
     await OtpLog.deleteOne({ mobile: mobileNumber });
 
-    // Hide password before sending response
+    if (process.env.ADMIN_NOTIFY_EMAIL) {
+      await sendEmail(
+        process.env.ADMIN_NOTIFY_EMAIL,
+        "New Consultant Registration - Pending Approval",
+        adminNewConsultantTemplate(user)
+      );
+    }
+
     user.password = undefined;
 
     res.status(201).json({
@@ -62,22 +58,14 @@ export const createUser = async (req, res) => {
   } catch (error) {
     console.error("Error creating user:", error);
 
-    // Handle duplicate key error for mobile, email, or PAN
     if (error.code === 11000) {
       const duplicateField = Object.keys(error.keyPattern)[0];
       let fieldName = "";
       switch (duplicateField) {
-        case "mobileNumber":
-          fieldName = "Mobile number";
-          break;
-        case "email":
-          fieldName = "Email";
-          break;
-        case "consultantPan":
-          fieldName = "PAN number";
-          break;
-        default:
-          fieldName = duplicateField;
+        case "mobileNumber": fieldName = "Mobile number"; break;
+        case "email": fieldName = "Email"; break;
+        case "consultantPan": fieldName = "PAN number"; break;
+        default: fieldName = duplicateField;
       }
       return res.status(400).json({
         success: false,
