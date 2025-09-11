@@ -113,7 +113,7 @@ function App() {
         />
 
         {/* Redirect unknown routes */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/consultant" replace />} />
       </Routes>
 
       <ToastContainer
