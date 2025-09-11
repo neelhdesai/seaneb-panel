@@ -14,25 +14,32 @@ export default function Hero() {
       <div className="absolute inset-0 bg-black/40 -z-0"></div>
 
       {/* Hero Card */}
-      <div className="relative z-10 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-10 max-w-2xl text-center">
+      <div className="relative z-10 backdrop-blur-md rounded-2xl p-10 max-w-2xl text-center">
         <img
-          src="./seaneb-offers.png"
+          src="./seaneb-logo-white.png"
           alt="Logo"
           className="h-20 w-auto mx-auto mb-6"
         />
-        <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+        <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4">
           Become a Consultant
         </h1>
-        <p className="text-gray-700 mb-8 text-base sm:text-lg">
+        <p className="text-white mb-8 text-base sm:text-lg">
           Join our professional network to connect with clients and grow your
           consulting business.
         </p>
         <Link
           to="/consultant-registration"
-          className="inline-block bg-black hover:bg-gray-800 text-white font-semibold px-8 py-3 rounded-lg shadow-lg transition-all animate-bounce"
+          className="inline-block bg-white text-black font-semibold px-8 py-3 rounded-lg shadow-lg transition-all animate-bounce mb-4"
         >
           Register as Consultant
         </Link>
+        {/* Login Link */}
+        <p className="text-white mt-4">
+          Already have an account?{" "}
+          <Link to="/login" className="underline font-semibold hover:text-gray-300">
+            Login
+          </Link>
+        </p>
       </div>
     </div>
   );
