@@ -47,4 +47,19 @@ export const denialTemplate = (name, reason) => {
       <p style="font-size: 14px; color: #555;">Best regards,<br/><b>SeaNeB Team</b></p>
     </div>
   `;
+
 };
+
+export const adminNewConsultantTemplate = (user) => `
+  <h2>New Consultant Registered</h2>
+  <p><strong>Name:</strong> ${user.name}</p>
+  <p><strong>Email:</strong> ${user.email}</p>
+  <p><strong>Mobile:</strong> ${user.mobileNumber}</p>
+  <p><strong>PAN:</strong> ${user.consultantPan || "N/A"}</p>
+  <p>Status: <b>Pending</b></p>
+  <p>
+    Login to the 
+    <a href="${process.env.ADMIN_URL}" target="_blank">Admin Panel</a> 
+    to approve or deny this consultant.
+  </p>
+`;
