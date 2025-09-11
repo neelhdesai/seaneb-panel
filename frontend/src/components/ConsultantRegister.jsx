@@ -43,6 +43,60 @@ export default function ConsultantRegister() {
   const [panVerified, setPanVerified] = useState(null);
   const [lastVerifiedPan, setLastVerifiedPan] = useState("");
   const [lastRequestTime, setLastRequestTime] = useState(0);
+  const STORAGE_KEY = "consultant_register_form";
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setFormData(parsed.formData || {});
+        setStep(parsed.step || 1);
+        setOtp(parsed.otp || "");
+        setOtpSent(parsed.otpSent || false);
+        setVerifiedMobile(parsed.verifiedMobile || false);
+        setAttempts(parsed.attempts || 0);
+        setResendTimer(parsed.resendTimer || 0);
+        setAgreed(parsed.agreed || false);
+        setPanVerified(parsed.panVerified ?? null);
+        setLastVerifiedPan(parsed.lastVerifiedPan || "");
+        setLastRequestTime(parsed.lastRequestTime || 0);
+      } catch {
+        console.warn("Failed to parse saved form state");
+      }
+    }
+  }, []);
+
+  // 🔹 Persist state to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        formData,
+        step,
+        otp,
+        otpSent,
+        verifiedMobile,
+        attempts,
+        resendTimer,
+        agreed,
+        panVerified,
+        lastVerifiedPan,
+        lastRequestTime,
+      })
+    );
+  }, [
+    formData,
+    step,
+    otp,
+    otpSent,
+    verifiedMobile,
+    attempts,
+    resendTimer,
+    agreed,
+    panVerified,
+    lastVerifiedPan,
+    lastRequestTime,
+  ]);
 
   useEffect(() => {
     const currentTimer = timerRef.current;
@@ -78,12 +132,12 @@ export default function ConsultantRegister() {
 
   const sendOtp = async () => {
     if (!/^[6-9]\d{9}$/.test(formData.mobileNumber)) {
-      setErrors({ ...errors, mobileNumber: "Enter valid mobile number" });
+      setErrors({ ...errors, mobileNumber: "Enter valid WhatsApp number" });
       return;
     }
 
     if (formData.mobileNumber !== formData.confirmMobileNumber) {
-      setErrors({ ...errors, confirmMobileNumber: "Mobile numbers do not match" });
+      setErrors({ ...errors, confirmMobileNumber: "WhatsApp numbers do not match" });
       return;
     }
 
@@ -204,17 +258,17 @@ export default function ConsultantRegister() {
     const newErrors = {};
     if (step === 1) {
       if (!formData.mobileNumber)
-        newErrors.mobileNumber = "Mobile number is required *";
+        newErrors.mobileNumber = "WhatsApp  number is required *";
       else if (!/^[6-9]\d{9}$/.test(formData.mobileNumber))
-        newErrors.mobileNumber = "Invalid mobile number";
+        newErrors.mobileNumber = "Invalid WhatsApp  number";
 
       if (!formData.confirmMobileNumber)
-        newErrors.confirmMobileNumber = "Confirm mobile number is required *";
+        newErrors.confirmMobileNumber = "Confirm WhatsApp number is required *";
       else if (formData.mobileNumber !== formData.confirmMobileNumber)
-        newErrors.confirmMobileNumber = "Mobile numbers do not match";
+        newErrors.confirmMobileNumber = "WhatsApp numbers do not match";
 
       else if (!verifiedMobile)
-        newErrors.mobileNumber = "Please verify your mobile number via OTP";
+        newErrors.mobileNumber = "Please verify your WhatsApp Number via OTP";
     }
     if (step === 2) {
       if (!formData.consultantPan) {
@@ -251,44 +305,52 @@ export default function ConsultantRegister() {
   };
 
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateStep()) return;
-    const payload = {
-      ...formData,
-      consultantPan: formData.consultantPan.trim().toUpperCase(),
-      email: formData.email.trim().toLowerCase(),
-      mobileNumber: formData.mobileNumber.trim(),
-    };
-    setLoading(true);
-    try {
-      await api.post("/api/users/addusers", payload);
-      toast.success(
-        "Consultant registered successfully! Awaiting admin approval."
-      );
-      setFormData({
-        name: "",
-        email: "",
-        mobileNumber: "",
-        confirmMobileNumber: "",
-        password: "",
-        consultantPan: "",
-      });
-      setAgreed(false);
-      setStep(1);
-      setErrors({});
-      setPanVerified(null);
-      setLastVerifiedPan("");
-      setVerifiedMobile(false);
-      setOtp("");
-      setOtpSent(false);
-      setAttempts(0);
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Registration failed");
-    } finally {
-      setLoading(false);
-    }
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!validateStep()) return;
+
+  const payload = {
+    ...formData,
+    consultantPan: formData.consultantPan.trim().toUpperCase(),
+    email: formData.email.trim().toLowerCase(),
+    mobileNumber: formData.mobileNumber.trim(),
   };
+
+  setLoading(true);
+  try {
+    await api.post("/api/users/addusers", payload);
+    toast.success(
+      "Consultant registered successfully! Awaiting admin approval."
+    );
+
+    // ✅ Reset form state
+    setFormData({
+      name: "",
+      email: "",
+      mobileNumber: "",
+      confirmMobileNumber: "",
+      password: "",
+      consultantPan: "",
+    });
+    setAgreed(false);
+    setStep(1);
+    setErrors({});
+    setPanVerified(null);
+    setLastVerifiedPan("");
+    setVerifiedMobile(false);
+    setOtp("");
+    setOtpSent(false);
+    setAttempts(0);
+
+    // ✅ Clear saved state from localStorage
+    localStorage.removeItem(STORAGE_KEY);
+
+  } catch (err) {
+    toast.error(err.response?.data?.message || "Registration failed");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const renderError = (field) =>
     errors[field] && (
@@ -340,12 +402,10 @@ export default function ConsultantRegister() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Step 1: Mobile + OTP */}
           {step === 1 && (
             <div className="flex flex-col gap-4">
-              {/* Mobile Number */}
               <label className="block text-gray-700 font-medium text-base">
-                Mobile Number <span className="text-red-500">*</span>
+                WhatsApp Number <span className="text-red-500">*</span>
               </label>
               <div className="flex flex-col sm:flex-row gap-2">
                 <input
@@ -361,7 +421,7 @@ export default function ConsultantRegister() {
                     })
                   }
                   maxLength={10}
-                  placeholder="Enter mobile number"
+                  placeholder="Enter WhatsApp Number"
                   className={`flex-1 border rounded-md px-4 py-2 text-base sm:text-lg ${verifiedMobile
                     ? "bg-gray-100 text-gray-500 cursor-not-allowed border-green-400"
                     : "border-gray-300"
@@ -371,11 +431,11 @@ export default function ConsultantRegister() {
               </div>
               {renderError("mobileNumber")}
 
-              {/* Confirm Mobile Number */}
+              {/* Confirm WhatsApp Number */}
               {!verifiedMobile && (
                 <>
                   <label className="block text-gray-700 font-medium text-base">
-                    Confirm Mobile Number <span className="text-red-500">*</span>
+                    Confirm WhatsApp Number <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -390,7 +450,7 @@ export default function ConsultantRegister() {
                       })
                     }
                     maxLength={10}
-                    placeholder="Re-enter mobile number"
+                    placeholder="Re-enter WhatsApp Number"
                     className={`flex-1 border rounded-md px-4 py-2 text-base sm:text-lg ${verifiedMobile
                       ? "bg-gray-100 text-gray-500 cursor-not-allowed border-green-400"
                       : "border-gray-300"
