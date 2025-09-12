@@ -115,7 +115,7 @@ export default function AllBusinesses() {
         "Transaction Date": new Date(b.transactionDate).toLocaleDateString(),
         Seanebid: b.seanebid || "N/A",
         "Registration Phone": b.registrationPhone || "N/A",
-        "PAN / GST": b.pangst || "N/A",
+        "PAN ": b.pangst || "N/A",
       }))
     );
     const wb = XLSX.utils.book_new();
