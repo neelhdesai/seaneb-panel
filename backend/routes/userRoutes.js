@@ -8,6 +8,7 @@ import {
   updateProfile,
   checkMobile,
   updateStatus,
+  getPendingConsultantsCount,
   getMe
 } from "../controllers/userController.js";
 import { protect } from "../middlewares/authMiddleware.js";
@@ -31,6 +32,7 @@ router.get("/getallusers", protect, getAllUsers);
 router.patch("/approve/:userId", protect, approveUser);
 router.patch("/deny/:userId", protect, denyUser);
 
+router.get("/pending-count", getPendingConsultantsCount);
 router.put("/profile", protect, updateProfile);
 
 router.get("/me", protect, getMe);
