@@ -23,8 +23,11 @@ export default function CashfreePayment() {
             const data = await response.json();
 
             if (data?.payment_session_id) {
-                const cashfree = new window.Cashfree(data.payment_session_id);
-                cashfree.redirect();
+                // ✅ Correct usage for Cashfree UI SDK v2
+                window.Cashfree.redirect({
+                    sessionId: data.payment_session_id,
+                    // Optional: redirectUrl: "https://your-success-page.com"
+                });
             } else {
                 alert("Error creating Cashfree order");
             }
