@@ -14,6 +14,7 @@ import "react-toastify/dist/ReactToastify.css";
 import MyProfile from "./components/MyProfile";
 import ForgotPassword from "./components/ForgotPassword";
 import Hero from "./components/Hero";
+import CashfreePayment from "./components/Payment";
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/consultant" element={<Hero />} />
         <Route path="/consultant-registration" element={<ConsultantRegister />} />
+        <Route path="/payment" element={<CashfreePayment />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
 
         {/* Consultant routes */}
