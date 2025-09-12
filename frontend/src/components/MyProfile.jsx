@@ -56,7 +56,7 @@ export default function MyProfile() {
             }
         } catch (err) {
             console.error(err);
-            toast.error(err.response?.data?.message || "Failed to check mobile number");
+            toast.error(err.response?.data?.message || "Failed to check WhatsApp Number");
         }
     };
     const handleMobileChange = (value) => {
@@ -75,7 +75,7 @@ export default function MyProfile() {
         const mobile = editData.mobileNumber;
 
         if (!mobile || mobile.length !== 10) {
-            toast.error("Enter a valid 10-digit mobile number");
+            toast.error("Enter a valid 10-digit WhatsApp Number");
             return;
         }
 
@@ -91,9 +91,8 @@ export default function MyProfile() {
 
             setMobileExists(false);
 
-            // ✅ Mobile is available, now send OTP
             await api.post("/api/whatsapp/sendOtp", { mobile });
-            toast.success("OTP sent to new mobile number");
+            toast.success("OTP sent to new WhatsApp Number");
             setOtpSent(true);
             setMobileVerified(false); // Reset verification if changing number
 
@@ -107,7 +106,7 @@ export default function MyProfile() {
     const verifyOtp = async () => {
         try {
             await api.post("/api/whatsapp/verifyOtp", { mobile: editData.mobileNumber, otp });
-            toast.success("Mobile number verified!");
+            toast.success("WhatsApp Number verified!");
             setMobileVerified(true);
         } catch (err) {
             toast.error(err.response?.data?.message || "OTP verification failed");
@@ -116,9 +115,10 @@ export default function MyProfile() {
 
     const handleSave = async () => {
         if (editData.mobileNumber !== profile.mobileNumber && !mobileVerified) {
-            toast.error("Please verify your new mobile number first");
+            toast.error("Please verify your new WhatsApp Number first");
             return;
         }
+
 
         // ✅ Bank account match validation
         if (editData.bankAccount !== editData.confirmBankAccount) {
