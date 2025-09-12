@@ -106,14 +106,49 @@ export const checkMobile = async (req, res) => {
 
 
 
-// Get all users (excluding password)
+// Get all users (excluding password) with pending first
 export const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find()
-      .select("-password")
-      .populate("approvedBy", "name email role") // approver details
-      .populate("deniedBy", "name email role")   // denier details
-      .lean();
+    const users = await User.aggregate([
+      {
+        $addFields: {
+          sortOrder: {
+            $switch: {
+              branches: [
+                { case: { $eq: ["$status", "pending"] }, then: 0 },
+                { case: { $eq: ["$status", "approved"] }, then: 1 },
+                { case: { $eq: ["$status", "denied"] }, then: 2 },
+              ],
+              default: 3,
+            },
+          },
+        },
+      },
+      { $sort: { sortOrder: 1, updatedAt: -1 } }, // pending first, newest first
+      {
+        $lookup: {
+          from: "users",
+          localField: "approvedBy",
+          foreignField: "_id",
+          as: "approvedBy",
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "deniedBy",
+          foreignField: "_id",
+          as: "deniedBy",
+        },
+      },
+      {
+        $project: {
+          password: 0,
+          "approvedBy.password": 0,
+          "deniedBy.password": 0,
+        },
+      },
+    ]);
 
     res.json({ success: true, users });
   } catch (err) {
@@ -121,6 +156,19 @@ export const getAllUsers = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
+
+export const getPendingConsultantsCount = async (req, res) => {
+  try {
+    // Count users with role 'consultant' and status 'pending'
+    const count = await User.countDocuments({ role: "consultant", status: "pending" });
+
+    res.json({ success: true, count });
+  } catch (err) {
+    console.error("Error fetching pending consultants count:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 // Admin approves a consultant
 export const approveUser = async (req, res) => {
   try {
