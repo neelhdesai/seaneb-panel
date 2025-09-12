@@ -1,7 +1,8 @@
 import { NavLink, useLocation, useNavigate, Outlet } from "react-router";
-import { Menu, LogOut, Briefcase, KeyRound, X, UserRoundPlus,Handshake, User } from "lucide-react";
+import { Menu, LogOut, Briefcase, KeyRound, X, UserRoundPlus, Handshake, User } from "lucide-react";
 import { useState, useEffect } from "react";
 import "../SidebarLayout.css";
+import { usePendingConsultants } from "../context/PendingConsultantsContext";
 
 export default function SidebarLayout() {
   // Hooks must always be called
@@ -21,20 +22,21 @@ export default function SidebarLayout() {
   const navItems = [];
 
   if (userRole === "admin") {
-  navItems.push(
-    { to: "/user-business", label: "User Business", icon: <Briefcase /> },
-    { to: "/new-consultant", label: "Consultants", icon: <UserRoundPlus /> },
-    { to: "/my-profile", label: "My Profile", icon: <User /> },   
-    { to: "/change-password", label: "Change Password", icon: <KeyRound /> }
-  );
-} else if (userRole === "consultant") {
-  navItems.push(
-    { to: "/business-register", label: "Business Register", icon: <Briefcase /> },
-    { to: "/my-business", label: "My Business", icon: <Handshake /> },
-    { to: "/my-profile", label: "My Profile", icon: <User /> },   
-    { to: "/change-password", label: "Change Password", icon: <KeyRound /> }
-  );
-}
+    navItems.push(
+      { to: "/user-business", label: "User Business", icon: <Briefcase /> },
+      { to: "/new-consultant", label: "Consultants", icon: <UserRoundPlus /> },
+      { to: "/my-profile", label: "My Profile", icon: <User /> },
+      { to: "/change-password", label: "Change Password", icon: <KeyRound /> }
+    );
+  } else if (userRole === "consultant") {
+    navItems.push(
+      { to: "/business-register", label: "Business Register", icon: <Briefcase /> },
+      { to: "/my-business", label: "My Business", icon: <Handshake /> },
+      { to: "/my-profile", label: "My Profile", icon: <User /> },
+      { to: "/change-password", label: "Change Password", icon: <KeyRound /> }
+    );
+  }
+  const { pendingConsultants } = usePendingConsultants();
 
 
   const handleLogout = () => {
@@ -50,6 +52,8 @@ export default function SidebarLayout() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+
+ 
   const isMobile = windowWidth < 768;
   const isTablet = windowWidth >= 768 && windowWidth < 1024;
   const isDesktop = windowWidth >= 1024;
@@ -59,6 +63,7 @@ export default function SidebarLayout() {
     isAuthenticated && !["/", "/register"].includes(location.pathname);
 
   return (
+    
     <div className="sidebar-layout">
       {showSidebar && (
         <>
@@ -77,10 +82,9 @@ export default function SidebarLayout() {
             className={`sidebar ${collapsed ? "collapsed" : ""} ${mobileOpen ? "open" : ""
               }`}
           >
-            {/* Header */}
             <div className="sidebar-header">
               {(!collapsed || isMobile || isTablet) && (
-                <img src="/seaneb-offers.png" alt="Logo" className="logo-full" />
+                <img src="/seaneb-offers.png" alt="Logo" />
               )}
               {collapsed && isDesktop && (
                 <img src="/seaneb-icon.png" alt="Mini Logo" className="logo-mini" />
@@ -122,16 +126,30 @@ export default function SidebarLayout() {
                   key={to}
                   to={to}
                   className={({ isActive }) =>
-                    `nav-item ${isActive ? "active" : ""} ${collapsed && isDesktop ? "center" : ""
-                    }`
+                    `flex items-center justify-between px-4 py-3 my-1 rounded-lg transition-colors duration-200
+       ${isActive ? "bg-blue-600 text-white" : "text-gray-700 hover:bg-gray-200"}
+       ${collapsed && isDesktop ? "justify-center" : ""}`
                   }
                   onClick={() => (isMobile || isTablet) && setMobileOpen(false)}
                 >
-                  {icon}
-                  {(!collapsed || isMobile || isTablet) && <span>{label}</span>}
+                  {/* Icon */}
+                  <div className="flex items-center space-x-3">
+                    {icon}
+                    {(!collapsed || isMobile || isTablet) && <span className="font-medium">{label}</span>}
+                  </div>
+
+                  {/* Red badge for pending consultants */}
+                  {to === "/new-consultant" && pendingConsultants > 0 && !collapsed && (
+                    <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                      {pendingConsultants}
+                    </span>
+                  )}
+
+                  {/* Tooltip when collapsed */}
                   {collapsed && isDesktop && <span className="tooltip">{label}</span>}
                 </NavLink>
               ))}
+
 
               {/* Logout */}
               <button
