@@ -4,14 +4,10 @@ export const createOrder = async (req, res) => {
   try {
     const { amount, currency } = req.body;
 
-    // Check env and log values
-    const env =
-      process.env.CASHFREE_ENV === "production"
-        ? "api.cashfree.com"
-        : "sandbox.cashfree.com";
+    // Production endpoint only
+    const env = "api.cashfree.com";
 
     console.log("📦 Creating Cashfree order...");
-    console.log("➡️ ENV:", process.env.CASHFREE_ENV);
     console.log("➡️ Endpoint:", `https://${env}/pg/orders`);
     console.log("➡️ APP_ID:", process.env.CASHFREE_APP_ID);
     console.log("➡️ SECRET_KEY:", process.env.CASHFREE_SECRET_KEY ? "********" : "❌ MISSING");
