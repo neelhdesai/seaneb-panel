@@ -14,8 +14,8 @@ export default defineConfig({
         name: 'Seaneb Admin',
         start_url: '/consultant', // opens directly on consultant login
         display: 'standalone',
-        background_color: '#ffffff',
-        theme_color: '#0B2545',
+        background_color: '#000000',
+        theme_color: '#000000',
         icons: [
           {
             src: '/pwa-192.png',
