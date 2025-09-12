@@ -11,6 +11,7 @@ import healthRoutes from "./routes/health.js"
 import panRoutes from "./routes/panRoutes.js"
 import whatsappRoutes from "./routes/whatsappRoutes.js"
 import forgotPasswordRoutes from "./routes/forgetPassword.js"
+import paymentRoutes from "./routes/payment.js"
 
 dotenv.config();
 const app = express();
@@ -20,7 +21,7 @@ app.use(express.json());
 
 app.use(cors({
   origin: [
-    "https://admin.seaneb.com", // production
+    "https://seaneb-panel.vercel.app", // production
     "http://localhost:5173",           // local frontend
     "http://localhost:8080"            // another local frontend
   ],
@@ -39,11 +40,10 @@ app.use("/api/health", healthRoutes);
 app.use("/api/pan", panRoutes);
 app.use("/api/whatsapp", whatsappRoutes);
 app.use("/api/password", forgotPasswordRoutes);
+app.use("/api/test", paymentRoutes);
 
 // Server Listen
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
-
-
