@@ -4,6 +4,7 @@ import api from "../lib/api";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import * as XLSX from "xlsx";
+import { usePendingConsultants } from "../context/PendingConsultantsContext";
 
 export default function ConsultantApproval() {
   const [consultants, setConsultants] = useState([]);
@@ -12,9 +13,25 @@ export default function ConsultantApproval() {
   const [selectedConsultant, setSelectedConsultant] = useState(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+ const { pendingConsultants, setPendingConsultants } = usePendingConsultants();
   const [isMobile, setIsMobile] = useState(false);
+  const userRole = sessionStorage.getItem("role"); 
 
-  // Detect mobile
+  const fetchPendingCount = async () => {
+    try {
+      const res = await api.get("/api/users/pending-count");
+      setPendingConsultants(res.data.count);
+    } catch (err) {
+      console.error("Failed to fetch pending count", err);
+    }
+  };
+
+  useEffect(() => {
+    if (userRole === "admin") {
+      fetchPendingCount();
+    }
+  }, [userRole]);
+
   useEffect(() => {
     const checkScreen = () => setIsMobile(window.innerWidth < 768);
     checkScreen();
@@ -22,7 +39,6 @@ export default function ConsultantApproval() {
     return () => window.removeEventListener("resize", checkScreen);
   }, []);
 
-  // Fetch consultants (exclude admin)
   useEffect(() => {
     const fetchConsultants = async () => {
       setLoading(true);
@@ -40,7 +56,6 @@ export default function ConsultantApproval() {
     fetchConsultants();
   }, []);
 
-  // Filtering function
   const handleFilter = (term, status) => {
     let filtered = consultants;
 
@@ -60,14 +75,12 @@ export default function ConsultantApproval() {
     setFilteredConsultants(filtered);
   };
 
-  // Search handler
   const handleSearch = (e) => {
     const term = e.target.value;
     setSearch(term);
     handleFilter(term, statusFilter);
   };
 
-  // Status dropdown handler
   const handleStatusChange = (e) => {
     const status = e.target.value;
     setStatusFilter(status);
@@ -78,7 +91,6 @@ export default function ConsultantApproval() {
     try {
       await api.patch(`/api/users/status/${userId}`, { status: newStatus });
 
-      // Update state everywhere
       setConsultants(prev =>
         prev.map(u => (u._id === userId ? { ...u, status: newStatus } : u))
       );
@@ -93,16 +105,15 @@ export default function ConsultantApproval() {
     }
   };
 
-
-  // Export to Excel
   const exportToExcel = () => {
     const dataToExport = filteredConsultants.map(c => ({
       Name: c.name,
       Email: c.email,
-      Mobile: c.mobileNumber,
+      WhatsApp: c.mobileNumber,
       Status: c.status,
       PAN: c.consultantPan || "N/A",
-      UPI: c.consultantUpiId || "N/A",
+      BankAccount: c.bankAccount || "N/A",
+      ifsc: c.ifsc || "N/A"
     }));
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
     const workbook = XLSX.utils.book_new();
@@ -122,7 +133,7 @@ export default function ConsultantApproval() {
       ),
     },
     { name: "Email", selector: row => row.email, sortable: true },
-    { name: "Mobile", selector: row => row.mobileNumber, sortable: true },
+    { name: "WhatsApp Number", selector: row => row.mobileNumber, sortable: true },
     {
       name: "Status",
       selector: row => row.status,
@@ -130,10 +141,10 @@ export default function ConsultantApproval() {
       cell: row => (
         <span
           className={`px-2 py-1 rounded text-white ${row.status === "approved"
-              ? "bg-green-500"
-              : row.status === "denied"
-                ? "bg-red-500"
-                : "bg-gray-500"
+            ? "bg-green-500"
+            : row.status === "denied"
+              ? "bg-red-500"
+              : "bg-gray-500"
             }`}
         >
           {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
@@ -190,7 +201,7 @@ export default function ConsultantApproval() {
             >
               <h3 className="font-bold text-lg mb-2">{c.name}</h3>
               <p><strong>Email:</strong> {c.email}</p>
-              <p><strong>Mobile:</strong> {c.mobileNumber}</p>
+              <p><strong>WhatsApp Number::</strong> {c.mobileNumber}</p>
               <p>
                 <strong>Status:</strong>{" "}
                 <span
@@ -201,9 +212,10 @@ export default function ConsultantApproval() {
                       : "bg-gray-500"
                     }`}
                 >
-                  {c.status}
+                  {c.status.charAt(0).toUpperCase() + c.status.slice(1)}
                 </span>
               </p>
+
             </div>
           ))}
         </div>
@@ -218,7 +230,6 @@ export default function ConsultantApproval() {
         />
       )}
 
-      {/* Consultant popup */}
       {selectedConsultant && (
         <div className="fixed inset-0 bg-black/30 flex justify-center items-center z-50 p-4">
           <div className="bg-white p-6 rounded-lg w-full max-w-sm shadow-lg relative">
@@ -231,16 +242,26 @@ export default function ConsultantApproval() {
 
             <h3 className="text-xl font-bold mb-2">{selectedConsultant.name}</h3>
             <p><strong>Email:</strong> {selectedConsultant.email}</p>
-            <p><strong>Mobile:</strong> {selectedConsultant.mobileNumber}</p>
+            <p><strong>WhatsApp Number:</strong> {selectedConsultant.mobileNumber}</p>
             <p><strong>PAN:</strong> {selectedConsultant.consultantPan || "N/A"}</p>
-            <p><strong>UPI ID:</strong> {selectedConsultant.consultantUpiId || "N/A"}</p>
+            <p><strong>Bank Account Number:</strong> {selectedConsultant.bankAccount || "N/A"}</p>
+            <p><strong>IFSC:</strong> {selectedConsultant.ifsc || "N/A"}</p>
 
             <div className="mt-4">
               <label className="block mb-2 font-medium">Update Status</label>
               <select
                 value={selectedConsultant.status}
-                onChange={async (e) => {
-                  const newStatus = e.target.value;
+                onChange={(e) => setSelectedConsultant(prev => ({ ...prev, status: e.target.value }))}
+                className="border p-2 rounded w-full"
+              >
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="denied">Denied</option>
+              </select>
+
+              <button
+                onClick={async () => {
+                  const newStatus = selectedConsultant.status;
 
                   try {
                     if (newStatus === "approved") {
@@ -257,18 +278,20 @@ export default function ConsultantApproval() {
                     setFilteredConsultants(prev =>
                       prev.map(u => u._id === selectedConsultant._id ? { ...u, status: newStatus } : u)
                     );
-                    setSelectedConsultant(prev => ({ ...prev, status: newStatus }));
+
+                    const res = await api.get("/api/users/pending-count");
+                    setPendingConsultants(res.data.count);
+
                     toast.success(`Status updated to ${newStatus}`);
+                    setSelectedConsultant(null);
                   } catch (err) {
                     toast.error(err.response?.data?.message || "Failed to update status");
                   }
                 }}
-                className="border p-2 rounded w-full"
+                className="mt-3 w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
               >
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="denied">Denied</option>
-              </select>
+                Update Status
+              </button>
 
             </div>
           </div>
