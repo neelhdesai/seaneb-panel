@@ -47,7 +47,8 @@ export default function CashfreePayment({ amount = 100, currency = "INR" }) {
   // Verify payment after checkout
   const verifyPayment = async () => {
     try {
-      const res = await axios.post(`${API_BASE_URL}/api/verify`, { orderId });
+    const res = await axios.post(`${API_BASE_URL}/api/payment/verify`, { orderId });
+
 
       if (res.data?.status === "success") {
         alert("Payment verified successfully!");
