@@ -16,12 +16,17 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
   }, []);
 
   const initiatePayment = async () => {
+    console.log("💡 initiatePayment called");
+
     if (!window.Cashfree) {
+      console.log("❌ Cashfree SDK not loaded");
       alert("Cashfree SDK not loaded yet.");
       return;
     }
 
     try {
+      console.log("🔹 Fetching payment session from backend...");
+
       const response = await fetch(
         `${import.meta.env.VITE_API_BASE_URL}/api/test/create-order`,
         {
@@ -32,22 +37,34 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
       );
 
       const data = await response.json();
+      console.log("🔹 Backend response:", data);
 
       if (!data?.payment_session_id) {
+        console.log("❌ No payment_session_id returned");
         alert("Error creating Cashfree order");
         return;
       }
 
-      // ✅ v3: Initialize SDK instance
-      const cfInstance = window.Cashfree({ mode: "PROD" }); // or "TEST" for sandbox
+      console.log("🔹 Payment session ID received:", data.payment_session_id);
+
+      // ✅ Initialize SDK instance
+      console.log("🔹 Creating Cashfree instance...");
+      const cfInstance = window.Cashfree({ mode: "PROD" });
+      console.log("🔹 Cashfree instance created:", cfInstance);
 
       // ✅ Trigger checkout
+      console.log("🔹 Calling checkout...");
       await cfInstance.checkout({
         paymentSessionId: data.payment_session_id,
         redirectTarget: "_self", // or "_blank"
+        onSuccess: (res) => console.log("✅ Payment success:", res),
+        onFailure: (res) => console.log("❌ Payment failure:", res),
+        onClose: () => console.log("⚠️ Checkout closed by user"),
       });
+
+      console.log("🔹 checkout() call completed");
     } catch (error) {
-      console.error(error);
+      console.error("❌ Payment initiation failed:", error);
       alert("Payment initiation failed");
     }
   };
