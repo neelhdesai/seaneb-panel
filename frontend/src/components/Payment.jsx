@@ -1,7 +1,27 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function CashfreePayment() {
+  const [sdkReady, setSdkReady] = useState(false);
+
+  useEffect(() => {
+    // Wait until Cashfree SDK is available (added in index.html)
+    const checkSdk = setInterval(() => {
+      if (window.Cashfree) {
+        setSdkReady(true);
+        clearInterval(checkSdk);
+        console.log("✅ Cashfree SDK ready");
+      }
+    }, 300);
+
+    return () => clearInterval(checkSdk);
+  }, []);
+
   const initiatePayment = async () => {
+    if (!window.Cashfree) {
+      alert("Cashfree SDK not loaded yet. Please try again.");
+      return;
+    }
+
     try {
       const response = await fetch(
         `${import.meta.env.VITE_API_BASE_URL}/api/test/create-order`,
@@ -34,11 +54,15 @@ export default function CashfreePayment() {
       <h2 className="text-xl font-bold mb-4">Amount: ₹10</h2>
       <button
         onClick={initiatePayment}
-        className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+        disabled={!sdkReady}
+        className={`px-6 py-2 rounded-lg text-white ${
+          sdkReady
+            ? "bg-green-600 hover:bg-green-700"
+            : "bg-gray-400 cursor-not-allowed"
+        }`}
       >
-        Pay Now
+        {sdkReady ? "Pay Now" : "Loading..."}
       </button>
     </div>
   );
 }
-
