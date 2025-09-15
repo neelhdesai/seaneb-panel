@@ -54,7 +54,8 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
 
 cfInstance.pay({
   paymentSessionId: data.payment_session_id,
-  redirectTarget: "_self", // open in same tab
+  redirectTarget: "_self",
+  onError: (err) => console.error("Cashfree Pay error:", err),
 });
       console.log("🔹 Cashfree instance created:", cfInstance);
 
