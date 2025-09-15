@@ -17,6 +17,7 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
 
       if (!data?.payment_session_id || !data?.order_id) {
         alert("Error creating Cashfree order");
+        setLoading(false);
         return;
       }
 
