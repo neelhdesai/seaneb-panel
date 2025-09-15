@@ -6,6 +6,7 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
   const initiatePayment = async () => {
     setLoading(true);
     try {
+      // Call backend to create Cashfree order
       const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/test/create-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -19,11 +20,26 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
         return;
       }
 
-      // Production URL only
-      const checkoutUrl = `https://www.cashfree.com/checkout/post/redirect?order_id=${data.order_id}&payment_session_id=${data.payment_session_id}`;
+      // Create a form to POST to Cashfree Hosted Checkout
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = "https://www.cashfree.com/checkout/post/redirect";
 
-      // Redirect to Cashfree Hosted Checkout
-      window.location.href = checkoutUrl;
+      const orderInput = document.createElement("input");
+      orderInput.type = "hidden";
+      orderInput.name = "order_id";
+      orderInput.value = data.order_id;
+
+      const sessionInput = document.createElement("input");
+      sessionInput.type = "hidden";
+      sessionInput.name = "payment_session_id";
+      sessionInput.value = data.payment_session_id;
+
+      form.appendChild(orderInput);
+      form.appendChild(sessionInput);
+      document.body.appendChild(form);
+
+      form.submit(); // Redirect to Cashfree
     } catch (err) {
       console.error("Payment initiation failed:", err);
       alert("Payment initiation failed");
