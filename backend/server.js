@@ -20,14 +20,10 @@ const app = express();
 app.use(express.json());
 
 app.use(cors({
-  origin: [
-    "https://admin.seaneb.com",
-    "https://seaneb-panel.vercel.app", // production
-    "http://localhost:5173",           // local frontend
-    "http://localhost:8080"            // another local frontend
-  ],
+  origin: "*",
   credentials: true,
 }));
+
 
 // Connect to MongoDB
 connectDB(); // This handles the connection and logs DB name
@@ -48,4 +44,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
-
