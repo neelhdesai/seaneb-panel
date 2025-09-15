@@ -4,10 +4,10 @@ export const createOrder = async (req, res) => {
   try {
     const { amount, currency } = req.body;
 
-    const env = process.env.CASHFREE_ENV.toLowerCase() === "production"
-      ? "api.cashfree.com"
-      : "sandbox.cashfree.com";
-
+    const env =
+      process.env.CASHFREE_ENV.toLowerCase() === "production"
+        ? "api.cashfree.com"
+        : "sandbox.cashfree.com";
 
     console.log("📦 Creating Cashfree order...");
 
@@ -22,7 +22,7 @@ export const createOrder = async (req, res) => {
           customer_phone: "9999999999",
         },
         order_meta: {
-          return_url: "https://your-frontend.com/payment-success", // redirect after payment
+          return_url: "https://your-frontend.com/payment-success",
         },
       },
       {
@@ -36,9 +36,10 @@ export const createOrder = async (req, res) => {
     );
 
     console.log("✅ Order created:", response.data);
+    console.log("➡️ Sending payment_session_id to frontend:", response.data.payment_session_id);
 
     return res.json({
-      payment_session_id: response.data.order_token, // pass this to frontend
+      payment_session_id: response.data.payment_session_id,
     });
   } catch (error) {
     console.error("❌ Cashfree Order Error:", error.response?.data || error.message);
