@@ -30,7 +30,7 @@ connectDB(); // This handles the connection and logs DB name
 
 Cashfree.XClientId = process.env.CLIENT_ID;
 Cashfree.XClientSecret = process.env.CLIENT_SECRET;
-Cashfree.XEnvironment = Cashfree.Environment.PRODUCTION; 
+Cashfree.XEnvironment = Cashfree.Environment.PROD;
 
 // Routes
 app.use("/api/users", userRoutes);
@@ -48,4 +48,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
+
 
