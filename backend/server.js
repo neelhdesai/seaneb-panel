@@ -28,6 +28,10 @@ app.use(cors({
 // Connect to MongoDB
 connectDB(); // This handles the connection and logs DB name
 
+Cashfree.XClientId = process.env.CLIENT_ID;
+Cashfree.XClientSecret = process.env.CLIENT_SECRET;
+Cashfree.XEnvironment = Cashfree.Environment.PRODUCTION; 
+
 // Routes
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
@@ -44,3 +48,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
+
