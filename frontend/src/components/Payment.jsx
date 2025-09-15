@@ -4,7 +4,6 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
   const [sdkReady, setSdkReady] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Check for Cashfree SDK
   useEffect(() => {
     const checkSdk = setInterval(() => {
       if (window.Cashfree) {
@@ -13,7 +12,6 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
         console.log("✅ Cashfree SDK v3.0 loaded");
       }
     }, 300);
-
     return () => clearInterval(checkSdk);
   }, []);
 
@@ -21,7 +19,6 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
     console.log("💡 initiatePayment called");
 
     if (!window.Cashfree) {
-      console.log("❌ Cashfree SDK not loaded");
       alert("Cashfree SDK not loaded yet.");
       return;
     }
@@ -44,7 +41,6 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
       console.log("🔹 Backend response:", data);
 
       if (!data?.payment_session_id) {
-        console.log("❌ No payment_session_id returned");
         alert("Error creating Cashfree order");
         setLoading(false);
         return;
@@ -52,26 +48,24 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
 
       console.log("🔹 Payment session ID received:", data.payment_session_id);
 
-      // Initialize SDK instance in PROD
-      const cfInstance = window.Cashfree({ mode: "PROD" });
+      const cfInstance = window.Cashfree({ mode: "PROD" }); // or "TEST" if sandbox
       console.log("🔹 Cashfree instance created:", cfInstance);
 
-cfInstance.checkout({
-  paymentSessionId: data.payment_session_id,
-  redirectTarget: "self",  // or just remove this key
-  onSuccess: (res) => {
-    console.log("✅ Payment success callback triggered:", res);
-    window.location.href = `/payment-success?orderId=${res.order.order_id}&orderStatus=${res.order.order_status}&referenceId=${res.transaction.transaction_id}&txMsg=${res.transaction.tx_msg}`;
-  },
-  onFailure: (res) => {
-    console.log("❌ Payment failure callback triggered:", res);
-    window.location.href = `/payment-success?orderId=${res.order.order_id}&orderStatus=${res.order.order_status}&txMsg=${res.transaction.tx_msg}`;
-  },
-  onClose: () => {
-    console.log("⚠️ Checkout closed by user");
-  },
-});
-
+      cfInstance.checkout({
+        paymentSessionId: data.payment_session_id,
+        redirectTarget: "self", // ensures redirect back to your site
+        onSuccess: (res) => {
+          console.log("✅ Payment success:", res);
+          window.location.href = `/payment-success?orderId=${res.order.order_id}&orderStatus=${res.order.order_status}&referenceId=${res.transaction.transaction_id}&txMsg=${encodeURIComponent(res.transaction.tx_msg)}`;
+        },
+        onFailure: (res) => {
+          console.log("❌ Payment failure:", res);
+          window.location.href = `/payment-success?orderId=${res.order.order_id}&orderStatus=${res.order.order_status}&txMsg=${encodeURIComponent(res.transaction.tx_msg)}`;
+        },
+        onClose: () => {
+          console.log("⚠️ Checkout closed by user");
+        },
+      });
 
       console.log("🔹 checkout() call initiated");
     } catch (error) {
