@@ -18,12 +18,14 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
   }, []);
 
 const initiatePayment = async () => {
-  if (!window.Cashfree) {
+  if (!window.Cashfree || !window.Cashfree.payments) {
     alert("Cashfree SDK not loaded yet. Please try again.");
     return;
   }
 
   try {
+    console.log("➡️ Initiating payment...");
+
     const response = await fetch(
       `${import.meta.env.VITE_API_BASE_URL}/api/test/create-order`,
       {
@@ -35,16 +37,16 @@ const initiatePayment = async () => {
 
     const data = await response.json();
 
+    console.log("➡️ Backend data:", data);
+
     if (data?.payment_session_id) {
       console.log("✅ Payment session ID received:", data.payment_session_id);
 
-      // v3 Hosted Checkout
       const cf = window.Cashfree.payments.init({
         sessionId: data.payment_session_id,
         mode: "PROD", // "TEST" for sandbox
       });
 
-      // Open the payment modal
       cf.open();
     } else {
       alert("Error creating Cashfree order");
@@ -54,7 +56,6 @@ const initiatePayment = async () => {
     alert("Payment failed to start");
   }
 };
-
   return (
     <div className="flex flex-col items-center justify-center min-h-screen">
       <h2 className="text-xl font-bold mb-4">Amount: ₹{amount}</h2>
