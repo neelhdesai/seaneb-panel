@@ -4,27 +4,20 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
   const [sdkReady, setSdkReady] = useState(false);
 
   useEffect(() => {
-    // Dynamically load the Cashfree SDK
-    const script = document.createElement("script");
-    script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
-    script.async = true;
+    // Wait until Cashfree SDK is available (loaded in index.html)
+    const checkSdk = setInterval(() => {
+      if (window.Cashfree) {
+        setSdkReady(true);
+        clearInterval(checkSdk);
+        console.log("✅ Cashfree SDK ready (production)");
+      }
+    }, 300);
 
-    script.onload = () => {
-      console.log("✅ Cashfree SDK loaded dynamically");
-      setSdkReady(true);
-    };
-
-    script.onerror = () => console.error("❌ Failed to load Cashfree SDK");
-
-    document.body.appendChild(script);
-
-    return () => {
-      document.body.removeChild(script);
-    };
+    return () => clearInterval(checkSdk);
   }, []);
 
   const initiatePayment = async () => {
-    if (!sdkReady) {
+    if (!window.Cashfree) {
       alert("Cashfree SDK not loaded yet. Please try again.");
       return;
     }
@@ -42,19 +35,17 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
       const data = await response.json();
 
       if (data?.payment_session_id) {
-        console.log("✅ Payment session ID received:", data.payment_session_id);
-
-        const cf = window.Cashfree.payments.init({
-          sessionId: data.payment_session_id,
-          mode: "PROD", // use "TEST" for sandbox
+        // ✅ Use production mode
+        const cashfree = window.Cashfree({ mode: "production" });
+        await cashfree.checkout({
+          paymentSessionId: data.payment_session_id,
+          redirectTarget: "_self", // or "_blank"
         });
-
-        cf.open();
       } else {
         alert("Error creating Cashfree order");
       }
     } catch (error) {
-      console.error("❌ Payment initiation error:", error);
+      console.error(error);
       alert("Payment failed to start");
     }
   };
@@ -71,7 +62,7 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
             : "bg-gray-400 cursor-not-allowed"
         }`}
       >
-        {sdkReady ? "Pay Now" : "Loading SDK..."}
+        {sdkReady ? "Pay Now" : "Loading..."}
       </button>
     </div>
   );
