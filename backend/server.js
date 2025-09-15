@@ -42,13 +42,15 @@ app.use("/api/health", healthRoutes);
 app.use("/api/pan", panRoutes);
 app.use("/api/whatsapp", whatsappRoutes);
 app.use("/api/password", forgotPasswordRoutes);
-app.use("/api/test", paymentRoutes);
+app.use("/api/payment", paymentRoutes);
+
 
 // Server Listen
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
+
 
 
 
