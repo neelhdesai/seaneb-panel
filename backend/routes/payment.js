@@ -4,7 +4,7 @@ import { createPayment, verifyPayment } from "../controllers/paymentController.j
 const router = express.Router();
 
 // Routes
-router.get("/payment", createPayment);
+router.get("/", createPayment);      // now maps to /api/payment
 router.post("/verify", verifyPayment);
 
 export default router;
