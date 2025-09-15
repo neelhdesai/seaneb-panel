@@ -1,136 +1,100 @@
-import { useState, useEffect } from "react";
-
-
-
-export default function CashfreePayment({ amount = 10, currency = "INR" }) {
-
-  const [loading, setLoading] = useState(false);
-
-  const [sdkReady, setSdkReady] = useState(false);
-
-
-
-  // Check if Cashfree SDK is loaded
-
-  useEffect(() => {
-
-    const timer = setInterval(() => {
-
-      if (window.Cashfree) {
-
-        setSdkReady(true);
-
-        clearInterval(timer);
-
-      }
-
-    }, 100);
-
-    return () => clearInterval(timer);
-
-  }, []);
-
-
-
-  const initiatePayment = async () => {
-
-    if (!sdkReady) {
-
-      alert("Cashfree SDK is not ready yet");
-
-      return;
-
-    }
-
-
-
-    setLoading(true);
-
-    try {
-
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/test/create-order`, {
-
-        method: "POST",
-
-        headers: { "Content-Type": "application/json" },
-
-        body: JSON.stringify({ amount, currency }),
-
-      });
-
-
-
-      const data = await res.json();
-
-
-
-      if (!data.payment_session_id || !data.order_id) {
-
-        alert("Failed to create order");
-
-        setLoading(false);
-
-        return;
-
-      }
-
-
-
-      // Use Cashfree JS SDK for checkout
-
-      window.Cashfree.checkout({
-
-        orderId: data.order_id,
-
-        sessionId: data.payment_session_id,
-
-        environment: import.meta.env.VITE_CASHFREE_ENV || "sandbox",
-
-      });
-
-    } catch (err) {
-
-      console.error(err);
-
-      alert("Payment initiation failed");
-
-    } finally {
-
-      setLoading(false);
-
-    }
-
-  };
-
-
-
-  return (
-
-    <div className="flex flex-col items-center justify-center min-h-screen p-4">
-
-      <h2 className="text-xl font-bold mb-4">Amount: ₹{amount}</h2>
-
-      <button
-
-        onClick={initiatePayment}
-
-        disabled={loading}
-
-        className={`px-6 py-2 rounded-lg text-white ${
-
-          loading ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
-
-        }`}
-
-      >
-
-        {loading ? "Processing..." : "Pay Now"}
-
-      </button>
-
-    </div>
-
-  );
-
+import { useEffect, useState } from "react";
+import axios from "axios";
+import { load } from "@cashfreepayments/cashfree-js";
+
+export default function CashfreePayment({ amount = 100, currency = "INR" }) {
+  const [cashfree, setCashfree] = useState(null);
+  const [orderId, setOrderId] = useState("");
+
+  // Use environment variable for API base URL
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+  // Initialize Cashfree SDK
+  useEffect(() => {
+    const initializeSDK = async () => {
+      try {
+        const cf = await load({
+          mode: "PROD", // Use "sandbox" for testing
+        });
+        setCashfree(cf);
+      } catch (error) {
+        console.error("Error loading Cashfree SDK:", error);
+      }
+    };
+
+    initializeSDK();
+  }, []);
+
+  // Get payment session ID from backend
+  const getSessionId = async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/payment`, {
+        params: { amount, currency },
+      });
+
+      if (res.data?.payment_session_id) {
+        setOrderId(res.data.order_id);
+        return res.data.payment_session_id;
+      } else {
+        throw new Error("No payment session returned from backend");
+      }
+    } catch (error) {
+      console.error("Error fetching payment session:", error);
+      alert("Failed to create payment session");
+    }
+  };
+
+  // Verify payment after checkout
+  const verifyPayment = async () => {
+    try {
+      const res = await axios.post(`${API_BASE_URL}/api/verify`, { orderId });
+
+      if (res.data?.status === "success") {
+        alert("Payment verified successfully!");
+      } else {
+        alert("Payment verification failed.");
+      }
+    } catch (error) {
+      console.error("Error verifying payment:", error);
+      alert("Error verifying payment");
+    }
+  };
+
+  // Handle Pay Now button click
+  const handleClick = async (e) => {
+    e.preventDefault();
+
+    if (!cashfree) return alert("Payment SDK is not loaded yet!");
+
+    try {
+      const sessionId = await getSessionId();
+      if (!sessionId) return;
+
+      const checkoutOptions = {
+        paymentSessionId: sessionId,
+        redirectTarget: "_modal", // "_blank" or "_self" also possible
+      };
+
+      try {
+        await cashfree.checkout(checkoutOptions);
+        console.log("Payment initialized");
+        await verifyPayment();
+      } catch (checkoutError) {
+        console.error("Error during checkout:", checkoutError);
+        alert("Payment failed to initialize");
+      }
+    } catch (error) {
+      console.error("Error initiating payment:", error);
+      alert("Payment initiation failed");
+    }
+  };
+
+  return (
+    <div>
+      <h1>Cashfree Payment Gateway</h1>
+      <button onClick={handleClick} disabled={!cashfree}>
+        Pay Now
+      </button>
+    </div>
+  );
 }
-
