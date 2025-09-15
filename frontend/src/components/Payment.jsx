@@ -1,68 +1,66 @@
-import { useState, useEffect } from "react";
+import axios from "axios";
 
-export default function CashfreePayment({ amount = 10, currency = "INR" }) {
-  const [loading, setLoading] = useState(false);
-  const [sdkReady, setSdkReady] = useState(false);
+export const createOrder = async (req, res) => {
+  try {
+    const { amount, currency } = req.body;
 
-  // Check if Cashfree SDK is loaded
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (window.Cashfree) {
-        setSdkReady(true);
-        clearInterval(timer);
-      }
-    }, 100);
-    return () => clearInterval(timer);
-  }, []);
-
-  const initiatePayment = async () => {
-    if (!sdkReady) {
-      alert("Cashfree SDK is not ready yet");
-      return;
+    if (!amount || !currency) {
+      console.warn("⚠️ Missing amount or currency in request body");
+      return res.status(400).json({ error: "Amount and currency are required" });
     }
 
-    setLoading(true);
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/test/create-order`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount, currency }),
-      });
+    const isProduction = process.env.CASHFREE_ENV?.toLowerCase() === "production";
+    const apiBase = isProduction ? "https://api.cashfree.com" : "https://sandbox.cashfree.com";
 
-      const data = await res.json();
+    console.log("📦 Creating Cashfree order in", isProduction ? "Production" : "Sandbox");
 
-      if (!data.payment_session_id || !data.order_id) {
-        alert("Failed to create order");
-        setLoading(false);
-        return;
-      }
+    const payload = {
+      order_amount: amount,
+      order_currency: currency,
+      customer_details: {
+        customer_id: "cust_001",
+        customer_email: "customer@example.com",
+        customer_phone: "9999999999",
+      },
+      order_meta: {
+        return_url: `https://admin.seaneb.com/payment-success?order_id={order_id}&order_status={order_status}&payment_mode={payment_mode}&reference_id={reference_id}&tx_msg={tx_msg}`,
+      },
+    };
 
-      // Use Cashfree JS SDK for checkout
-      window.Cashfree.checkout({
-        orderId: data.order_id,
-        sessionId: data.payment_session_id,
-        environment: import.meta.env.VITE_CASHFREE_ENV || "sandbox",
-      });
-    } catch (err) {
-      console.error(err);
-      alert("Payment initiation failed");
-    } finally {
-      setLoading(false);
+    const headers = {
+      "x-client-id": process.env.CASHFREE_APP_ID,
+      "x-client-secret": process.env.CASHFREE_SECRET_KEY,
+      "x-api-version": "2022-09-01",
+      "Content-Type": "application/json",
+    };
+
+    console.log("📤 Request Payload:", JSON.stringify(payload, null, 2));
+
+    const response = await axios.post(`${apiBase}/pg/orders`, payload, { headers });
+
+    console.log("📥 Raw response from Cashfree:", response.data);
+
+    const { order_id, payment_session_id } = response.data;
+
+    if (!order_id || !payment_session_id) {
+      console.error("❌ Missing order_id or payment_session_id in response:", response.data);
+      return res.status(500).json({ error: "Invalid response from Cashfree" });
     }
-  };
 
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4">
-      <h2 className="text-xl font-bold mb-4">Amount: ₹{amount}</h2>
-      <button
-        onClick={initiatePayment}
-        disabled={loading}
-        className={`px-6 py-2 rounded-lg text-white ${
-          loading ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
-        }`}
-      >
-        {loading ? "Processing..." : "Pay Now"}
-      </button>
-    </div>
-  );
-}
+    console.log("✅ Order created successfully");
+    return res.json({ order_id, payment_session_id });
+  } catch (error) {
+    console.error("❌ Cashfree Order Error:");
+    if (error.response) {
+      console.error("Status:", error.response.status);
+      console.error("Data:", error.response.data);
+      return res.status(error.response.status).json({
+        error: "Payment order creation failed",
+        details: error.response.data,
+      });
+    } else {
+      console.error(error.message);
+      return res.status(500).json({ error: "Payment order creation failed" });
+    }
+  }
+};
