@@ -16,7 +16,7 @@ export const createPayment = async (req, res) => {
     const { amount = 1.0, currency = "INR" } = req.query;
 
     const request = {
-      order_amount: amount,
+      order_amount: Number(amount),
       order_currency: currency,
       order_id: generateOrderId(),
       customer_details: {
@@ -27,10 +27,11 @@ export const createPayment = async (req, res) => {
       },
     };
 
-    const response = await Cashfree.PGCreateOrder("2023-08-01", request);
+    const today = new Date().toISOString().split("T")[0]; // dynamic date
+    const response = await Cashfree.PGCreateOrder(today, request);
     res.json(response.data);
   } catch (error) {
-    console.error(error?.response?.data || error);
+    console.error("Cashfree createPayment error:", error?.response?.data || error);
     res.status(500).json({ error: "Failed to create payment session" });
   }
 };
@@ -41,10 +42,11 @@ export const verifyPayment = async (req, res) => {
     const { orderId } = req.body;
     if (!orderId) return res.status(400).json({ error: "Order ID is required" });
 
-    const response = await Cashfree.PGOrderFetchPayments("2023-08-01", orderId);
+    const today = new Date().toISOString().split("T")[0]; // dynamic date
+    const response = await Cashfree.PGOrderFetchPayments(today, orderId);
     res.json(response.data);
   } catch (error) {
-    console.error(error?.response?.data || error);
+    console.error("Cashfree verifyPayment error:", error?.response?.data || error);
     res.status(500).json({ error: "Failed to verify payment" });
   }
 };
