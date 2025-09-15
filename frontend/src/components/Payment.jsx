@@ -1,66 +1,72 @@
-import axios from "axios";
+import { useState, useEffect } from "react";
 
-export const createOrder = async (req, res) => {
-  try {
-    const { amount, currency } = req.body;
+export default function CashfreePayment({ amount = 10, currency = "INR" }) {
+  const [loading, setLoading] = useState(false);
+  const [sdkReady, setSdkReady] = useState(false);
 
-    if (!amount || !currency) {
-      console.warn("⚠️ Missing amount or currency in request body");
-      return res.status(400).json({ error: "Amount and currency are required" });
+  useEffect(() => {
+    // This part is crucial for ensuring the SDK is loaded before use
+    const checkSDK = () => {
+      if (window.Cashfree) {
+        setSdkReady(true);
+      } else {
+        setTimeout(checkSDK, 100);
+      }
+    };
+    checkSDK();
+  }, []);
+
+  const initiatePayment = async () => {
+    if (!sdkReady) {
+      alert("Cashfree SDK is not ready. Please try again in a moment.");
+      return;
     }
 
-    const isProduction = process.env.CASHFREE_ENV?.toLowerCase() === "production";
-    const apiBase = isProduction ? "https://api.cashfree.com" : "https://sandbox.cashfree.com";
-
-    console.log("📦 Creating Cashfree order in", isProduction ? "Production" : "Sandbox");
-
-    const payload = {
-      order_amount: amount,
-      order_currency: currency,
-      customer_details: {
-        customer_id: "cust_001",
-        customer_email: "customer@example.com",
-        customer_phone: "9999999999",
-      },
-      order_meta: {
-        return_url: `https://admin.seaneb.com/payment-success?order_id={order_id}&order_status={order_status}&payment_mode={payment_mode}&reference_id={reference_id}&tx_msg={tx_msg}`,
-      },
-    };
-
-    const headers = {
-      "x-client-id": process.env.CASHFREE_APP_ID,
-      "x-client-secret": process.env.CASHFREE_SECRET_KEY,
-      "x-api-version": "2022-09-01",
-      "Content-Type": "application/json",
-    };
-
-    console.log("📤 Request Payload:", JSON.stringify(payload, null, 2));
-
-    const response = await axios.post(`${apiBase}/pg/orders`, payload, { headers });
-
-    console.log("📥 Raw response from Cashfree:", response.data);
-
-    const { order_id, payment_session_id } = response.data;
-
-    if (!order_id || !payment_session_id) {
-      console.error("❌ Missing order_id or payment_session_id in response:", response.data);
-      return res.status(500).json({ error: "Invalid response from Cashfree" });
-    }
-
-    console.log("✅ Order created successfully");
-    return res.json({ order_id, payment_session_id });
-  } catch (error) {
-    console.error("❌ Cashfree Order Error:");
-    if (error.response) {
-      console.error("Status:", error.response.status);
-      console.error("Data:", error.response.data);
-      return res.status(error.response.status).json({
-        error: "Payment order creation failed",
-        details: error.response.data,
+    setLoading(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/test/create-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount, currency }),
       });
-    } else {
-      console.error(error.message);
-      return res.status(500).json({ error: "Payment order creation failed" });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        // Handle server-side errors returned from your API
+        alert(`Failed to create order: ${data.error}`);
+        setLoading(false);
+        return;
+      }
+
+      // Use Cashfree JS SDK for checkout
+      window.Cashfree.checkout({
+        orderId: data.order_id,
+        sessionId: data.payment_session_id,
+        environment: import.meta.env.VITE_CASHFREE_ENV || "sandbox",
+      });
+
+    } catch (err) {
+      console.error("Payment initiation failed:", err);
+      alert("Payment initiation failed. Please check your network connection.");
+    } finally {
+      setLoading(false);
     }
-  }
-};
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen p-4">
+      <h2 className="text-xl font-bold mb-4">Amount: ₹{amount}</h2>
+      <button
+        onClick={initiatePayment}
+        disabled={loading || !sdkReady}
+        className={`px-6 py-2 rounded-lg text-white ${
+          loading || !sdkReady ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
+        }`}
+      >
+        {loading ? "Processing..." : "Pay Now"}
+      </button>
+      {!sdkReady && <p className="mt-2 text-sm text-red-500">Loading payment SDK...</p>}
+    </div>
+  );
+}
