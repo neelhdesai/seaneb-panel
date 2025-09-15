@@ -1,9 +1,9 @@
-import express from "express";
-import { createOrder } from "../controllers/paymentController.js";
-
+const express = require("express");
 const router = express.Router();
+const paymentController = require("../controllers/paymentController");
 
-// POST: create a new order in Cashfree
-router.post("/create-order", createOrder);
+// Routes
+router.get("/payment", paymentController.createPayment);
+router.post("/verify", paymentController.verifyPayment);
 
-export default router;
+module.exports = router;
