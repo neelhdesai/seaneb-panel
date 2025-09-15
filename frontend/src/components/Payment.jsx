@@ -26,8 +26,9 @@ export default function CashfreePayment({ amount = 10, currency = 'INR' }) {
       }
 
       console.log('➡️ Redirecting to Cashfree Hosted Checkout...');
-      const checkoutUrl = `https://prod.cashfree.com/pg/orders/${data.order_id}?payment_session_id=${data.payment_session_id}`;
-      console.log('🌐 Redirect URL:', checkoutUrl);
+     const checkoutUrl = `https://www.cashfree.com/checkout/post/redirect?order_id=${data.order_id}&payment_session_id=${data.payment_session_id}`;
+window.location.href = checkoutUrl;
+
 
       window.location.href = checkoutUrl;
     } catch (error) {
