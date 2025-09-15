@@ -3,22 +3,25 @@ import { useEffect, useState } from "react";
 export default function CashfreePayment({ amount = 10, currency = "INR" }) {
   const [sdkReady, setSdkReady] = useState(false);
 
-useEffect(() => {
-  let timer;
-  const waitForSdk = () => {
-    if (window.Cashfree && window.Cashfree.payments) {
+  useEffect(() => {
+    // Dynamically load the Cashfree SDK
+    const script = document.createElement("script");
+    script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
+    script.async = true;
+
+    script.onload = () => {
+      console.log("✅ Cashfree SDK loaded dynamically");
       setSdkReady(true);
-      console.log("✅ Cashfree SDK fully loaded");
-    } else {
-      console.log("⏳ Waiting for Cashfree SDK...");
-      timer = setTimeout(waitForSdk, 300);
-    }
-  };
+    };
 
-  waitForSdk();
-  return () => clearTimeout(timer);
-}, []);
+    script.onerror = () => console.error("❌ Failed to load Cashfree SDK");
 
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
 
   const initiatePayment = async () => {
     if (!sdkReady) {
@@ -27,8 +30,6 @@ useEffect(() => {
     }
 
     try {
-      console.log("➡️ Initiating payment...");
-
       const response = await fetch(
         `${import.meta.env.VITE_API_BASE_URL}/api/test/create-order`,
         {
@@ -39,18 +40,15 @@ useEffect(() => {
       );
 
       const data = await response.json();
-      console.log("➡️ Backend data:", data);
 
       if (data?.payment_session_id) {
         console.log("✅ Payment session ID received:", data.payment_session_id);
 
-        // Correct v3 Hosted Checkout usage
         const cf = window.Cashfree.payments.init({
           sessionId: data.payment_session_id,
-          mode: "PROD", // "TEST" for sandbox
+          mode: "PROD", // use "TEST" for sandbox
         });
 
-        // Open payment modal
         cf.open();
       } else {
         alert("Error creating Cashfree order");
