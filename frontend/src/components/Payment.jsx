@@ -48,14 +48,15 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
 
       console.log("🔹 Payment session ID received:", data.payment_session_id);
 
-      const cfInstance = window.Cashfree({ mode: "PROD" }); // use "TEST" in sandbox
-      console.log("🔹 Cashfree instance created:", cfInstance);
+      const cfInstance = new window.Cashfree({
+  mode: "PROD", // use "TEST" when using sandbox
+});
 
-      // ✅ Use pay() instead of checkout()
-      cfInstance.pay({
-        paymentSessionId: data.payment_session_id,
-        redirectTarget: "_self", // "_blank" for new tab, "_self" for same tab
-      });
+cfInstance.pay({
+  paymentSessionId: data.payment_session_id,
+  redirectTarget: "_self", // open in same tab
+});
+      console.log("🔹 Cashfree instance created:", cfInstance);
 
       console.log("🔹 pay() call initiated");
     } catch (error) {
