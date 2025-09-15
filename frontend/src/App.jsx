@@ -8,7 +8,7 @@ import ChangePassword from "./components/ChangePassword";
 import ConsultantRegister from "./components/ConsultantRegister";
 import ConsultantApproval from "./components/ConsultantApproval";
 import MyBusinesses from "./components/MyBusinesses";
-import PaymentSuccess from "./components/PaymentSuccess";
+import PaymentSuccess from "./components/payment-success";
 
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
