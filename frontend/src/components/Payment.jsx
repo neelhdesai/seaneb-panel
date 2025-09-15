@@ -17,7 +17,7 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
     return () => clearInterval(checkSdk);
   }, []);
 
- const initiatePayment = async () => {
+const initiatePayment = async () => {
   if (!window.Cashfree) {
     alert("Cashfree SDK not loaded yet. Please try again.");
     return;
@@ -38,12 +38,14 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
     if (data?.payment_session_id) {
       console.log("✅ Payment session ID received:", data.payment_session_id);
 
-      // v3 Hosted Checkout (production mode)
-      window.Cashfree.checkout({
-        sessionId: data.payment_session_id, // <-- note: 'sessionId'
-        mode: "PROD",                        // "TEST" for sandbox
-        redirectTarget: "_self"               // or "_blank"
+      // v3 Hosted Checkout
+      const cf = window.Cashfree.payments.init({
+        sessionId: data.payment_session_id,
+        mode: "PROD", // "TEST" for sandbox
       });
+
+      // Open the payment modal
+      cf.open();
     } else {
       alert("Error creating Cashfree order");
     }
