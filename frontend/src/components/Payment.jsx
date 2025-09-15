@@ -44,7 +44,7 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
         // Correct v3 Hosted Checkout usage
         const cf = window.Cashfree.payments.init({
           sessionId: data.payment_session_id,
-          mode: "PROD", // "TEST" for sandbox
+          mode: "production", // "TEST" for sandbox
         });
 
         // Open payment modal
