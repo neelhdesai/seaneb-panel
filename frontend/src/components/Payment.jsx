@@ -4,57 +4,59 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
   const [sdkReady, setSdkReady] = useState(false);
 
   useEffect(() => {
-    const checkSdk = setInterval(() => {
-      if (window.Cashfree) {
+    const waitForSdk = () => {
+      if (window.Cashfree && window.Cashfree.payments) {
         setSdkReady(true);
-        clearInterval(checkSdk);
-        console.log("✅ Cashfree SDK ready (production)");
+        console.log("✅ Cashfree SDK fully loaded");
       } else {
         console.log("⏳ Waiting for Cashfree SDK...");
+        setTimeout(waitForSdk, 300);
       }
-    }, 300);
+    };
 
-    return () => clearInterval(checkSdk);
+    waitForSdk();
   }, []);
 
-const initiatePayment = async () => {
-  if (!window.Cashfree) {
-    alert("Cashfree SDK not loaded yet. Please try again.");
-    return;
-  }
-
-  try {
-    console.log("➡️ Initiating payment...");
-
-    const response = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL}/api/test/create-order`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount, currency }),
-      }
-    );
-
-    const data = await response.json();
-    console.log("➡️ Backend data:", data);
-
-    if (data?.payment_session_id) {
-      console.log("✅ Payment session ID received:", data.payment_session_id);
-
-      window.Cashfree.checkout({
-        sessionId: data.payment_session_id,
-        mode: "PROD", // "TEST" for sandbox
-        onSuccess: (res) => console.log("✅ Payment success:", res),
-        onFailure: (err) => console.log("❌ Payment failed:", err),
-      });
-    } else {
-      alert("Error creating Cashfree order");
+  const initiatePayment = async () => {
+    if (!sdkReady) {
+      alert("Cashfree SDK not loaded yet. Please try again.");
+      return;
     }
-  } catch (error) {
-    console.error("❌ Payment initiation error:", error);
-    alert("Payment failed to start");
-  }
-};
+
+    try {
+      console.log("➡️ Initiating payment...");
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/api/test/create-order`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount, currency }),
+        }
+      );
+
+      const data = await response.json();
+      console.log("➡️ Backend data:", data);
+
+      if (data?.payment_session_id) {
+        console.log("✅ Payment session ID received:", data.payment_session_id);
+
+        // Correct v3 Hosted Checkout usage
+        const cf = window.Cashfree.payments.init({
+          sessionId: data.payment_session_id,
+          mode: "PROD", // "TEST" for sandbox
+        });
+
+        // Open payment modal
+        cf.open();
+      } else {
+        alert("Error creating Cashfree order");
+      }
+    } catch (error) {
+      console.error("❌ Payment initiation error:", error);
+      alert("Payment failed to start");
+    }
+  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen">
@@ -68,7 +70,7 @@ const initiatePayment = async () => {
             : "bg-gray-400 cursor-not-allowed"
         }`}
       >
-        {sdkReady ? "Pay Now" : "Loading..."}
+        {sdkReady ? "Pay Now" : "Loading SDK..."}
       </button>
     </div>
   );
