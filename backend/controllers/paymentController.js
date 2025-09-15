@@ -4,13 +4,12 @@ export const createOrder = async (req, res) => {
   try {
     const { amount, currency } = req.body;
 
-    // Production endpoint only
-    const env = "api.cashfree.com";
+    const env =
+      process.env.CASHFREE_ENV === "production"
+        ? "api.cashfree.com"
+        : "sandbox.cashfree.com";
 
     console.log("📦 Creating Cashfree order...");
-    console.log("➡️ Endpoint:", `https://${env}/pg/orders`);
-    console.log("➡️ APP_ID:", process.env.CASHFREE_APP_ID);
-    console.log("➡️ SECRET_KEY:", process.env.CASHFREE_SECRET_KEY ? "********" : "❌ MISSING");
 
     const response = await axios.post(
       `https://${env}/pg/orders`,
@@ -21,6 +20,9 @@ export const createOrder = async (req, res) => {
           customer_id: "cust_001",
           customer_email: "customer@example.com",
           customer_phone: "9999999999",
+        },
+        order_meta: {
+          return_url: "https://your-frontend.com/payment-success", // redirect after payment
         },
       },
       {
@@ -35,8 +37,9 @@ export const createOrder = async (req, res) => {
 
     console.log("✅ Order created:", response.data);
 
+    // v3 Hosted Checkout expects "order_token"
     return res.json({
-      payment_session_id: response.data.payment_session_id,
+      payment_session_id: response.data.order_token, // pass this to frontend
     });
   } catch (error) {
     console.error("❌ Cashfree Order Error:", error.response?.data || error.message);
