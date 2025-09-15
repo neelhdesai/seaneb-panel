@@ -8,6 +8,7 @@ import ChangePassword from "./components/ChangePassword";
 import ConsultantRegister from "./components/ConsultantRegister";
 import ConsultantApproval from "./components/ConsultantApproval";
 import MyBusinesses from "./components/MyBusinesses";
+import PaymentSuccess from "./components/PaymentSuccess";
 
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -26,6 +27,7 @@ function App() {
         <Route path="/consultant-registration" element={<ConsultantRegister />} />
         <Route path="/payment" element={<CashfreePayment />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+         <Route path="/payment-success" element={<PaymentSuccess />} />
 
         {/* Consultant routes */}
         <Route
