@@ -4,7 +4,6 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
   const [sdkReady, setSdkReady] = useState(false);
 
   useEffect(() => {
-    // Wait for the Cashfree SDK to load
     const checkSdk = setInterval(() => {
       if (window.Cashfree) {
         setSdkReady(true);
@@ -18,7 +17,7 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
 
   const initiatePayment = async () => {
     if (!window.Cashfree) {
-      alert("Cashfree SDK not loaded yet. Please try again.");
+      alert("Cashfree SDK not loaded yet.");
       return;
     }
 
@@ -34,25 +33,22 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
 
       const data = await response.json();
 
-      if (data?.payment_session_id) {
-        // Initialize Cashfree Checkout
-        const result = await window.Cashfree.checkout({
-          paymentSessionId: data.payment_session_id,
-          returnUrl: "https://your-frontend.com/payment-success",
-          redirectTarget: "_self", // or "_blank"
-        });
-
-        if (result.error) {
-          alert(result.error.message);
-        } else if (result.redirect) {
-          console.log("Redirecting to payment page...");
-        }
-      } else {
+      if (!data?.payment_session_id) {
         alert("Error creating Cashfree order");
+        return;
       }
+
+      // ✅ v3: Initialize SDK instance
+      const cfInstance = window.Cashfree({ mode: "PROD" }); // or "TEST" for sandbox
+
+      // ✅ Trigger checkout
+      await cfInstance.checkout({
+        paymentSessionId: data.payment_session_id,
+        redirectTarget: "_self", // or "_blank"
+      });
     } catch (error) {
       console.error(error);
-      alert("Payment failed to start");
+      alert("Payment initiation failed");
     }
   };
 
@@ -63,9 +59,7 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
         onClick={initiatePayment}
         disabled={!sdkReady}
         className={`px-6 py-2 rounded-lg text-white ${
-          sdkReady
-            ? "bg-green-600 hover:bg-green-700"
-            : "bg-gray-400 cursor-not-allowed"
+          sdkReady ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 cursor-not-allowed"
         }`}
       >
         {sdkReady ? "Pay Now" : "Loading..."}
