@@ -56,23 +56,22 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
       const cfInstance = window.Cashfree({ mode: "PROD" });
       console.log("🔹 Cashfree instance created:", cfInstance);
 
-      // Trigger checkout in a new tab/modal
-      cfInstance.checkout({
-        paymentSessionId: data.payment_session_id,
-        redirectTarget: "_blank", // Use "_blank" for modal/popup
-        onSuccess: (res) => {
-          console.log("✅ Payment success callback triggered:", res);
-          alert("Payment Successful!");
-        },
-        onFailure: (res) => {
-          console.log("❌ Payment failure callback triggered:", res);
-          alert("Payment Failed!");
-        },
-        onClose: () => {
-          console.log("⚠️ Checkout closed by user");
-          alert("Payment Closed!");
-        },
-      });
+cfInstance.checkout({
+  paymentSessionId: data.payment_session_id,
+  redirectTarget: "self",  // or just remove this key
+  onSuccess: (res) => {
+    console.log("✅ Payment success callback triggered:", res);
+    window.location.href = `/payment-success?orderId=${res.order.order_id}&orderStatus=${res.order.order_status}&referenceId=${res.transaction.transaction_id}&txMsg=${res.transaction.tx_msg}`;
+  },
+  onFailure: (res) => {
+    console.log("❌ Payment failure callback triggered:", res);
+    window.location.href = `/payment-success?orderId=${res.order.order_id}&orderStatus=${res.order.order_status}&txMsg=${res.transaction.tx_msg}`;
+  },
+  onClose: () => {
+    console.log("⚠️ Checkout closed by user");
+  },
+});
+
 
       console.log("🔹 checkout() call initiated");
     } catch (error) {
