@@ -18,7 +18,7 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
   }, []);
 
 const initiatePayment = async () => {
-  if (!window.Cashfree || !window.Cashfree.payments) {
+  if (!window.Cashfree) {
     alert("Cashfree SDK not loaded yet. Please try again.");
     return;
   }
@@ -36,18 +36,17 @@ const initiatePayment = async () => {
     );
 
     const data = await response.json();
-
     console.log("➡️ Backend data:", data);
 
     if (data?.payment_session_id) {
       console.log("✅ Payment session ID received:", data.payment_session_id);
 
-      const cf = window.Cashfree.payments.init({
+      window.Cashfree.checkout({
         sessionId: data.payment_session_id,
         mode: "PROD", // "TEST" for sandbox
+        onSuccess: (res) => console.log("✅ Payment success:", res),
+        onFailure: (err) => console.log("❌ Payment failed:", err),
       });
-
-      cf.open();
     } else {
       alert("Error creating Cashfree order");
     }
@@ -56,6 +55,7 @@ const initiatePayment = async () => {
     alert("Payment failed to start");
   }
 };
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen">
       <h2 className="text-xl font-bold mb-4">Amount: ₹{amount}</h2>
