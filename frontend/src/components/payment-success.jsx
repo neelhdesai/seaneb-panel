@@ -1,23 +1,21 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
 
 export default function PaymentSuccess() {
-  const [searchParams] = useSearchParams();
   const [status, setStatus] = useState("Processing...");
   const [details, setDetails] = useState({});
 
   useEffect(() => {
-    // Cashfree redirects with query params after payment
-    const paymentStatus = searchParams.get("orderStatus"); // "PAID", "FAILED", etc.
-    const orderId = searchParams.get("orderId");
-    const referenceId = searchParams.get("referenceId");
-    const txMsg = searchParams.get("txMsg");
+    const params = new URLSearchParams(window.location.search);
+    const paymentStatus = params.get("orderStatus"); // "PAID", "FAILED"
+    const orderId = params.get("orderId");
+    const referenceId = params.get("referenceId");
+    const txMsg = params.get("txMsg");
 
     if (paymentStatus) {
       setStatus(paymentStatus === "PAID" ? "✅ Payment Successful!" : "❌ Payment Failed!");
       setDetails({ orderId, referenceId, txMsg });
     }
-  }, [searchParams]);
+  }, []);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-100">
