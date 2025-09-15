@@ -4,10 +4,10 @@ export const createOrder = async (req, res) => {
   try {
     const { amount, currency } = req.body;
 
-    const env =
-      process.env.CASHFREE_ENV === "production"
-        ? "api.cashfree.com"
-        : "sandbox.cashfree.com";
+    const env = process.env.CASHFREE_ENV.toLowerCase() === "production"
+      ? "api.cashfree.com"
+      : "sandbox.cashfree.com";
+
 
     console.log("📦 Creating Cashfree order...");
 
