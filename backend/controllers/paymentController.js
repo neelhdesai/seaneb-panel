@@ -39,9 +39,10 @@ export const createOrder = async (req, res) => {
     console.log("✅ Order created:", response.data);
     console.log("➡️ Sending payment_session_id to frontend:", response.data.payment_session_id);
 
-    return res.json({
-      payment_session_id: response.data.payment_session_id,
-    });
+  return res.json({
+  payment_session_id: response.data.payment_session_id,
+  order_id: response.data.order_id,  // <-- add this
+});
   } catch (error) {
     console.error("❌ Cashfree Order Error:", error.response?.data || error.message);
     return res.status(500).json({ error: "Payment order creation failed" });
