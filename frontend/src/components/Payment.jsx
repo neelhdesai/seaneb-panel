@@ -48,26 +48,16 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
 
       console.log("🔹 Payment session ID received:", data.payment_session_id);
 
-      const cfInstance = window.Cashfree({ mode: "PROD" }); // or "TEST" if sandbox
+      const cfInstance = window.Cashfree({ mode: "PROD" }); // use "TEST" in sandbox
       console.log("🔹 Cashfree instance created:", cfInstance);
 
-      cfInstance.checkout({
+      // ✅ Use pay() instead of checkout()
+      cfInstance.pay({
         paymentSessionId: data.payment_session_id,
-        redirectTarget: "self", // ensures redirect back to your site
-        onSuccess: (res) => {
-          console.log("✅ Payment success:", res);
-          window.location.href = `/payment-success?orderId=${res.order.order_id}&orderStatus=${res.order.order_status}&referenceId=${res.transaction.transaction_id}&txMsg=${encodeURIComponent(res.transaction.tx_msg)}`;
-        },
-        onFailure: (res) => {
-          console.log("❌ Payment failure:", res);
-          window.location.href = `/payment-success?orderId=${res.order.order_id}&orderStatus=${res.order.order_status}&txMsg=${encodeURIComponent(res.transaction.tx_msg)}`;
-        },
-        onClose: () => {
-          console.log("⚠️ Checkout closed by user");
-        },
+        redirectTarget: "_self", // "_blank" for new tab, "_self" for same tab
       });
 
-      console.log("🔹 checkout() call initiated");
+      console.log("🔹 pay() call initiated");
     } catch (error) {
       console.error("❌ Payment initiation failed:", error);
       alert("Payment initiation failed");
