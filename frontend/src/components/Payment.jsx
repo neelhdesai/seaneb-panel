@@ -28,7 +28,7 @@ export default function CashfreePayment({ amount = 100, currency = "INR" }) {
   // Get payment session ID from backend
   const getSessionId = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/api/test/payment`, {
+      const res = await axios.get(`${API_BASE_URL}/api/payment`, {
         params: { amount, currency },
       });
 
@@ -47,7 +47,7 @@ export default function CashfreePayment({ amount = 100, currency = "INR" }) {
   // Verify payment after checkout
   const verifyPayment = async () => {
     try {
-      const res = await axios.post(`${API_BASE_URL}/api/test/verify`, { orderId });
+      const res = await axios.post(`${API_BASE_URL}/api/verify`, { orderId });
 
       if (res.data?.status === "success") {
         alert("Payment verified successfully!");
