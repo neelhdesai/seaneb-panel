@@ -1,5 +1,5 @@
-const crypto = require("crypto");
-const { Cashfree } = require("cashfree-pg");
+import crypto from "crypto";
+import { Cashfree } from "cashfree-pg";
 
 // Generate unique order ID
 function generateOrderId() {
@@ -11,7 +11,7 @@ function generateOrderId() {
 }
 
 // Create payment session
-exports.createPayment = async (req, res) => {
+export const createPayment = async (req, res) => {
   try {
     const { amount = 1.0, currency = "INR" } = req.query;
 
@@ -36,7 +36,7 @@ exports.createPayment = async (req, res) => {
 };
 
 // Verify payment
-exports.verifyPayment = async (req, res) => {
+export const verifyPayment = async (req, res) => {
   try {
     const { orderId } = req.body;
     if (!orderId) return res.status(400).json({ error: "Order ID is required" });
