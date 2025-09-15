@@ -1,66 +1,50 @@
-import axios from "axios";
+const crypto = require("crypto");
+const { Cashfree } = require("cashfree-pg");
 
-export const createOrder = async (req, res) => {
+// Generate unique order ID
+function generateOrderId() {
+  const uniqueId = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.createHash("sha256");
+  hash.update(uniqueId);
+  const orderId = hash.digest("hex");
+  return orderId.substr(0, 12);
+}
+
+// Create payment session
+exports.createPayment = async (req, res) => {
   try {
-    const { amount, currency } = req.body;
+    const { amount = 1.0, currency = "INR" } = req.query;
 
-    if (!amount || !currency) {
-      console.warn("⚠️ Missing amount or currency in request body");
-      return res.status(400).json({ error: "Amount and currency are required" });
-    }
-
-    const isProduction = process.env.CASHFREE_ENV?.toLowerCase() === "production";
-    const apiBase = isProduction ? "https://api.cashfree.com" : "https://sandbox.cashfree.com";
-
-    console.log("📦 Creating Cashfree order in", isProduction ? "Production" : "Sandbox");
-
-    const payload = {
+    const request = {
       order_amount: amount,
       order_currency: currency,
+      order_id: generateOrderId(),
       customer_details: {
-        customer_id: "cust_001",
-        customer_email: "customer@example.com",
+        customer_id: "webcodder01",
         customer_phone: "9999999999",
-      },
-      order_meta: {
-        return_url: `https://admin.seaneb.com/payment-success?order_id={order_id}&order_status={order_status}&payment_mode={payment_mode}&reference_id={reference_id}&tx_msg={tx_msg}`,
+        customer_name: "Web Codder",
+        customer_email: "webcodder@example.com",
       },
     };
 
-    const headers = {
-      "x-client-id": process.env.CASHFREE_APP_ID,
-      "x-client-secret": process.env.CASHFREE_SECRET_KEY,
-      "x-api-version": "2022-09-01",
-      "Content-Type": "application/json",
-    };
-
-    console.log("📤 Request Payload:", JSON.stringify(payload, null, 2));
-
-    const response = await axios.post(`${apiBase}/pg/orders`, payload, { headers });
-
-    console.log("📥 Raw response from Cashfree:", response.data);
-
-    const { order_id, payment_session_id } = response.data;
-
-    if (!order_id || !payment_session_id) {
-      console.error("❌ Missing order_id or payment_session_id in response:", response.data);
-      return res.status(500).json({ error: "Invalid response from Cashfree" });
-    }
-
-    console.log("✅ Order created successfully");
-    return res.json({ order_id, payment_session_id });
+    const response = await Cashfree.PGCreateOrder("2023-08-01", request);
+    res.json(response.data);
   } catch (error) {
-    console.error("❌ Cashfree Order Error:");
-    if (error.response) {
-      console.error("Status:", error.response.status);
-      console.error("Data:", error.response.data);
-      return res.status(error.response.status).json({
-        error: "Payment order creation failed",
-        details: error.response.data,
-      });
-    } else {
-      console.error(error.message);
-      return res.status(500).json({ error: "Payment order creation failed" });
-    }
+    console.error(error?.response?.data || error);
+    res.status(500).json({ error: "Failed to create payment session" });
+  }
+};
+
+// Verify payment
+exports.verifyPayment = async (req, res) => {
+  try {
+    const { orderId } = req.body;
+    if (!orderId) return res.status(400).json({ error: "Order ID is required" });
+
+    const response = await Cashfree.PGOrderFetchPayments("2023-08-01", orderId);
+    res.json(response.data);
+  } catch (error) {
+    console.error(error?.response?.data || error);
+    res.status(500).json({ error: "Failed to verify payment" });
   }
 };
