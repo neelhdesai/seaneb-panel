@@ -4,12 +4,12 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
   const [sdkReady, setSdkReady] = useState(false);
 
   useEffect(() => {
-    // Wait until Cashfree SDK is available (loaded in index.html)
+    // Wait for the Cashfree SDK to load
     const checkSdk = setInterval(() => {
       if (window.Cashfree) {
         setSdkReady(true);
         clearInterval(checkSdk);
-        console.log("✅ Cashfree SDK ready (production)");
+        console.log("✅ Cashfree SDK v3.0 loaded");
       }
     }, 300);
 
@@ -35,12 +35,18 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
       const data = await response.json();
 
       if (data?.payment_session_id) {
-        // ✅ Use production mode
-        const cashfree = window.Cashfree({ mode: "production" });
-        await cashfree.checkout({
+        // Initialize Cashfree Checkout
+        const result = await window.Cashfree.checkout({
           paymentSessionId: data.payment_session_id,
+          returnUrl: "https://your-frontend.com/payment-success",
           redirectTarget: "_self", // or "_blank"
         });
+
+        if (result.error) {
+          alert(result.error.message);
+        } else if (result.redirect) {
+          console.log("Redirecting to payment page...");
+        }
       } else {
         alert("Error creating Cashfree order");
       }
