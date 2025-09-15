@@ -17,59 +17,41 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
     return () => clearInterval(checkSdk);
   }, []);
 
-  const initiatePayment = async () => {
-    console.log("➡️ Initiating payment...");
+ const initiatePayment = async () => {
+  if (!window.Cashfree) {
+    alert("Cashfree SDK not loaded yet. Please try again.");
+    return;
+  }
 
-    if (!window.Cashfree) {
-      console.error("❌ Cashfree SDK not loaded");
-      alert("Cashfree SDK not loaded yet. Please try again.");
-      return;
-    }
-
-    try {
-      console.log("➡️ Creating order on backend...");
-      const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/api/test/create-order`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount, currency }),
-        }
-      );
-
-      console.log("➡️ Fetch response received:", response);
-
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error("❌ Backend responded with error:", errText);
-        alert("Backend order creation failed");
-        return;
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_BASE_URL}/api/test/create-order`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount, currency }),
       }
+    );
 
-      const data = await response.json();
-      console.log("➡️ Backend data:", data);
+    const data = await response.json();
 
-      if (data?.payment_session_id) {
-        console.log("✅ Payment session ID received:", data.payment_session_id);
+    if (data?.payment_session_id) {
+      console.log("✅ Payment session ID received:", data.payment_session_id);
 
-        // Initialize Hosted Checkout
-        console.log("➡️ Initializing Cashfree checkout...");
-        window.Cashfree.init({
-          token: data.payment_session_id,
-          mode: "PROD", // "TEST" for sandbox
-        });
-
-        console.log("➡️ Opening Cashfree checkout...");
-        window.Cashfree.open();
-      } else {
-        console.error("❌ No payment_session_id returned from backend");
-        alert("Error creating Cashfree order");
-      }
-    } catch (error) {
-      console.error("❌ Payment initiation error:", error);
-      alert("Payment failed to start");
+      // v3 Hosted Checkout (production mode)
+      window.Cashfree.checkout({
+        sessionId: data.payment_session_id, // <-- note: 'sessionId'
+        mode: "PROD",                        // "TEST" for sandbox
+        redirectTarget: "_self"               // or "_blank"
+      });
+    } else {
+      alert("Error creating Cashfree order");
     }
-  };
+  } catch (error) {
+    console.error("❌ Payment initiation error:", error);
+    alert("Payment failed to start");
+  }
+};
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen">
