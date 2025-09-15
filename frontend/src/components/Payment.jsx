@@ -3,19 +3,22 @@ import { useEffect, useState } from "react";
 export default function CashfreePayment({ amount = 10, currency = "INR" }) {
   const [sdkReady, setSdkReady] = useState(false);
 
-  useEffect(() => {
-    const waitForSdk = () => {
-      if (window.Cashfree && window.Cashfree.payments) {
-        setSdkReady(true);
-        console.log("✅ Cashfree SDK fully loaded");
-      } else {
-        console.log("⏳ Waiting for Cashfree SDK...");
-        setTimeout(waitForSdk, 300);
-      }
-    };
+useEffect(() => {
+  let timer;
+  const waitForSdk = () => {
+    if (window.Cashfree && window.Cashfree.payments) {
+      setSdkReady(true);
+      console.log("✅ Cashfree SDK fully loaded");
+    } else {
+      console.log("⏳ Waiting for Cashfree SDK...");
+      timer = setTimeout(waitForSdk, 300);
+    }
+  };
 
-    waitForSdk();
-  }, []);
+  waitForSdk();
+  return () => clearTimeout(timer);
+}, []);
+
 
   const initiatePayment = async () => {
     if (!sdkReady) {
