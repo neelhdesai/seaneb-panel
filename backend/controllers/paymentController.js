@@ -37,7 +37,6 @@ export const createOrder = async (req, res) => {
 
     console.log("✅ Order created:", response.data);
 
-    // v3 Hosted Checkout expects "order_token"
     return res.json({
       payment_session_id: response.data.order_token, // pass this to frontend
     });
