@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 
-export default function CashfreePayment() {
+export default function CashfreePayment({ amount = 10, currency = "INR" }) {
   const [sdkReady, setSdkReady] = useState(false);
 
   useEffect(() => {
-    // Wait until Cashfree SDK is available (added in index.html)
     const checkSdk = setInterval(() => {
       if (window.Cashfree) {
         setSdkReady(true);
@@ -28,14 +27,14 @@ export default function CashfreePayment() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount: 10, currency: "INR" }),
+          body: JSON.stringify({ amount, currency }),
         }
       );
 
       const data = await response.json();
 
       if (data?.payment_session_id) {
-        const cashfree = new window.Cashfree();
+        const cashfree = window.Cashfree({ mode: "production" });
         await cashfree.checkout({
           paymentSessionId: data.payment_session_id,
           redirectTarget: "_self", // or "_blank"
@@ -51,7 +50,7 @@ export default function CashfreePayment() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen">
-      <h2 className="text-xl font-bold mb-4">Amount: ₹10</h2>
+      <h2 className="text-xl font-bold mb-4">Amount: ₹{amount}</h2>
       <button
         onClick={initiatePayment}
         disabled={!sdkReady}
