@@ -16,57 +16,38 @@ export default function CashfreePayment({ amount = 10, currency = "INR" }) {
   }, []);
 
   const initiatePayment = async () => {
-    console.log("💡 initiatePayment called");
+  if (!window.Cashfree) return alert("SDK not loaded");
 
-    if (!window.Cashfree) {
-      alert("Cashfree SDK not loaded yet.");
-      return;
-    }
+  setLoading(true);
 
-    setLoading(true);
-
-    try {
-      console.log("🔹 Fetching payment session from backend...");
-
-      const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/api/test/create-order`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount, currency }),
-        }
-      );
-
-      const data = await response.json();
-      console.log("🔹 Backend response:", data);
-
-      if (!data?.payment_session_id) {
-        alert("Error creating Cashfree order");
-        setLoading(false);
-        return;
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_BASE_URL}/api/test/create-order`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount, currency }),
       }
+    );
+    const data = await response.json();
 
-      console.log("🔹 Payment session ID received:", data.payment_session_id);
+    if (!data?.payment_session_id) throw new Error("No session ID");
 
-      const cfInstance = new window.Cashfree({
-  mode: "PROD", // use "TEST" when using sandbox
-});
+    // Create instance and pay immediately
+    const cfInstance = new window.Cashfree({ mode: "PROD" });
+    cfInstance.pay({
+      paymentSessionId: data.payment_session_id,
+      redirectTarget: "_self",
+      onError: (err) => console.error("Cashfree Pay error:", err),
+    });
+  } catch (error) {
+    console.error(error);
+    alert("Payment initiation failed");
+  } finally {
+    setLoading(false);
+  }
+};
 
-cfInstance.pay({
-  paymentSessionId: data.payment_session_id,
-  redirectTarget: "_self",
-  onError: (err) => console.error("Cashfree Pay error:", err),
-});
-      console.log("🔹 Cashfree instance created:", cfInstance);
-
-      console.log("🔹 pay() call initiated");
-    } catch (error) {
-      console.error("❌ Payment initiation failed:", error);
-      alert("Payment initiation failed");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">
