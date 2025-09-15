@@ -9,7 +9,6 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ error: "Amount and currency are required" });
     }
 
-    // Determine Cashfree environment
     const isProduction = process.env.CASHFREE_ENV?.toLowerCase() === "production";
     const apiBase = isProduction ? "https://api.cashfree.com" : "https://sandbox.cashfree.com";
 
@@ -36,9 +35,7 @@ export const createOrder = async (req, res) => {
     };
 
     console.log("📤 Request Payload:", JSON.stringify(payload, null, 2));
-    console.log("📤 Request Headers:", headers);
 
-    // Create order via Cashfree Orders API
     const response = await axios.post(`${apiBase}/pg/orders`, payload, { headers });
 
     console.log("📥 Raw response from Cashfree:", response.data);
@@ -51,20 +48,19 @@ export const createOrder = async (req, res) => {
     }
 
     console.log("✅ Order created successfully");
-    console.log("➡️ Sending order_id & payment_session_id to frontend");
-
     return res.json({ order_id, payment_session_id });
   } catch (error) {
     console.error("❌ Cashfree Order Error:");
-
     if (error.response) {
       console.error("Status:", error.response.status);
-      console.error("Headers:", error.response.headers);
       console.error("Data:", error.response.data);
+      return res.status(error.response.status).json({
+        error: "Payment order creation failed",
+        details: error.response.data,
+      });
     } else {
       console.error(error.message);
+      return res.status(500).json({ error: "Payment order creation failed" });
     }
-
-    return res.status(500).json({ error: "Payment order creation failed" });
   }
 };
