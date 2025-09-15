@@ -22,7 +22,7 @@ export const createOrder = async (req, res) => {
           customer_phone: "9999999999",
         },
        order_meta: {
-  return_url: "https://seaneb-panel.vercel.app/payment-success?order_id={order_id}&order_status={order_status}&payment_mode={payment_mode}&reference_id={reference_id}&tx_msg={tx_msg}",
+  return_url: "https://admin.seaneb.com/payment-success?order_id={order_id}&order_status={order_status}&payment_mode={payment_mode}&reference_id={reference_id}&tx_msg={tx_msg}",
 },
 
       },
