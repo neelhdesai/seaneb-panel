@@ -1,3 +1,5 @@
+So your corrected controller should look like this:
+
 import crypto from "crypto";
 import { Cashfree, CFEnvironment } from "cashfree-pg";
 
@@ -6,11 +8,11 @@ const CASHFREE_CLIENT_ID = "1067081dcdffab8f71f600b71991807601";
 const CASHFREE_CLIENT_SECRET = "cfsk_ma_prod_b233324dab834753a8d0a622603c5d7a_63936c47";
 
 // Initialize Cashfree SDK for production
-const cashfree = new Cashfree({
-  env: CFEnvironment.PRODUCTION, // Use CFEnvironment.SANDBOX for testing
-  clientId: CASHFREE_CLIENT_ID,
-  clientSecret: CASHFREE_CLIENT_SECRET,
-});
+const cashfree = new Cashfree(
+  CFEnvironment.PRODUCTION, // or CFEnvironment.SANDBOX
+  CASHFREE_CLIENT_ID,
+  CASHFREE_CLIENT_SECRET
+);
 
 // Generate unique order ID
 function generateOrderId() {
@@ -38,7 +40,7 @@ export const createPayment = async (req, res) => {
       customer_details: {
         customer_id: orderId,
         customer_name,
-        customer_email: "example@email.com", // Replace with real email if available
+        customer_email: "example@email.com",
         customer_phone,
       },
       order_meta: {
@@ -46,8 +48,7 @@ export const createPayment = async (req, res) => {
       },
     };
 
-    // Create order using the latest Cashfree SDK
-    const response = await cashfree.orders.create(request);
+    const response = await cashfree.pg.orders.create(request);
 
     res.json({
       order_id: orderId,
@@ -65,7 +66,7 @@ export const verifyPayment = async (req, res) => {
     const { orderId } = req.body;
     if (!orderId) return res.status(400).json({ error: "Order ID is required" });
 
-    const response = await cashfree.orders.fetch(orderId);
+    const response = await cashfree.pg.orders.fetch(orderId);
 
     const status = response.order_status === "PAID" ? "success" : "failed";
 
