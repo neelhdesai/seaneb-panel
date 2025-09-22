@@ -35,20 +35,17 @@ const generateSignature = () => {
 };
 
 export const verifyPanWithCashfree = async (req, res) => {
-  console.log("🚀 /verify-pan route hit!", req.body);
   try {
     const { pan } = req.body;
     if (!pan) return res.status(400).json({ success: false, message: "PAN is required" });
 
     const isValidPAN = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
     if (!isValidPAN.test(pan)) {
-      console.log("❌ Invalid PAN format");
       return res.status(400).json({ success: false, message: "Invalid PAN format" });
     }
 
     const verification_id = `verify_${uuidv4().replace(/-/g, "")}`.slice(0, 50);
 
-    console.log("🔗 Calling Cashfree PAN 360 API with PAN:", pan);
 
     const signature = generateSignature();
 
@@ -67,7 +64,6 @@ export const verifyPanWithCashfree = async (req, res) => {
     );
 
     const apiData = response.data;
-    console.log("✅ Cashfree API response:", apiData);
 
     if (!["VALID", "SUCCESS"].includes(apiData.status)) {
   return res.status(400).json({
@@ -101,6 +97,7 @@ return res.status(200).json({
     });
   }
 };
+
 
 
 
