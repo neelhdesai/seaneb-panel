@@ -238,20 +238,24 @@ export default function ConsultantRegister() {
     console.log("Response from backend:", res.data);
 
 
-   if (res.data.status !== "VALID") {
-  setErrors((prev) => ({ ...prev, consultantPan: res.data.message || "Invalid PAN" }));
+if (!res.data.success) {
+  setErrors((prev) => ({
+    ...prev,
+    consultantPan: res.data.message || "Invalid PAN",
+  }));
   setPanVerified(false);
 } else {
-  const details = res.data;
+  const details = res.data.data;
   setFormData((prev) => ({
     ...prev,
-    name: details.registered_name || "",
+    name: details.fullName || "",
   }));
   setPanVerified(true);
   setLastVerifiedPan(pan);
   setLastRequestTime(now);
   toast.success("PAN verified successfully!");
 }
+
   } catch (err) {
     setErrors((prev) => ({
       ...prev,
@@ -704,5 +708,6 @@ const handleSubmit = async (e) => {
     </div>
   );
 }
+
 
 
