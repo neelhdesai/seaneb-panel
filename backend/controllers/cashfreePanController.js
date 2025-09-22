@@ -69,12 +69,12 @@ export const verifyPanWithCashfree = async (req, res) => {
     const apiData = response.data;
     console.log("✅ Cashfree API response:", apiData);
 
-    if (apiData.status !== "SUCCESS") {
-      return res.status(400).json({
-        success: false,
-        message: apiData.message || "PAN verification failed",
-      });
-    }
+    if (!["VALID", "SUCCESS"].includes(apiData.status)) {
+  return res.status(400).json({
+    success: false,
+    message: apiData.message || "PAN verification failed",
+  });
+}
 
     const details = apiData.result;
 
@@ -100,5 +100,6 @@ return res.status(200).json({
     });
   }
 };
+
 
 
