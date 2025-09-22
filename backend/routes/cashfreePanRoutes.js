@@ -1,5 +1,5 @@
 import express from "express";
-import { verifyPanWithCashfree } from "../controllers/cashfreePanController.js";
+import {verifyPanWithCashfree} from "../controllers/cashfreePanController.js";
 
 const router = express.Router();
 
