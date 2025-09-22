@@ -21,24 +21,26 @@ export default function CashfreePayment({ amount = 100, currency = "INR" }) {
     initializeSDK();
   }, []);
 
-  // Fetch payment session ID from backend
   const getSessionId = async () => {
-    try {
-      const res = await axios.get(`${API_BASE_URL}/payment`, {
-        params: { amount, currency },
-      });
+  try {
+    const res = await axios.post(`${API_BASE_URL}/payment`, {
+      amount,
+      currency,
+      customer_name: "Neel Desai",
+      customer_phone: "8160026509",
+    });
 
-      if (res.data?.payment_session_id) {
-        setOrderId(res.data.order_id);
-        return res.data.payment_session_id;
-      } else {
-        throw new Error("No payment session returned from backend");
-      }
-    } catch (error) {
-      console.error("Error fetching payment session:", error);
-      alert("Failed to create payment session");
+    if (res.data?.order_id && res.data?.payment_session_id) {
+      setOrderId(res.data.order_id);
+      return res.data.payment_session_id;
+    } else {
+      throw new Error("No payment session returned from backend");
     }
-  };
+  } catch (error) {
+    console.error("Error fetching payment session:", error);
+    alert("Failed to create payment session");
+  }
+};
 
   // Verify payment after checkout
   const verifyPayment = async () => {
