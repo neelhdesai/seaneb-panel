@@ -80,16 +80,17 @@ const details = apiData;
 
 return res.status(200).json({
   success: true,
-  status: details.status,
+  status: details.status || "VALID",
   message: details.message || "PAN verified successfully",
-  pan: details.pan,
-  registered_name: details.registered_name || `${details.first_name} ${details.last_name}`.trim(),
-  first_name: details.first_name,
-  last_name: details.last_name,
-  email: details.email,
-  mobile_number: details.mobile_number,
-  address: details.address,
+  pan: details.pan || pan, // fallback to sent PAN
+  registered_name: details.registered_name || `${details.first_name || ""} ${details.last_name || ""}`.trim(),
+  first_name: details.first_name || "",
+  last_name: details.last_name || "",
+  email: details.email || "",
+  mobile_number: details.mobile_number || "",
+  address: details.address || {},
 });
+
 
   } catch (error) {
     console.error("💥 Cashfree PAN error:", error.response?.data || error.message);
@@ -100,6 +101,7 @@ return res.status(200).json({
     });
   }
 };
+
 
 
 
