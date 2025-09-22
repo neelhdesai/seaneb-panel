@@ -76,18 +76,18 @@ export const verifyPanWithCashfree = async (req, res) => {
   });
 }
 
-    const details = apiData.result;
+const details = apiData;
 
 return res.status(200).json({
   success: true,
-  status: "VALID", // must include this for frontend
-  message: "PAN verified successfully",
+  status: details.status,
+  message: details.message || "PAN verified successfully",
   pan: details.pan,
-  registered_name: details.registered_name || `${details.first_name} ${details.last_name}`,
+  registered_name: details.registered_name || `${details.first_name} ${details.last_name}`.trim(),
   first_name: details.first_name,
   last_name: details.last_name,
   email: details.email,
-  mobile_number: details.mobile_number, // match frontend
+  mobile_number: details.mobile_number,
   address: details.address,
 });
 
@@ -100,6 +100,7 @@ return res.status(200).json({
     });
   }
 };
+
 
 
 
