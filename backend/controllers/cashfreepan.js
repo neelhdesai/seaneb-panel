@@ -1,57 +1,67 @@
 import axios from "axios";
-import { generateSignature } from "../config/cashfree.js";
 
-const BASE_URL = "https://api.cashfree.com/verification/pan/advance";
+// ⚠️ Hardcoding your credentials here (not recommended for production)
+// Better only for testing / POC
+const CASHFREE_LIVE_CLIENT_ID = "CF1067081D2VC6P67DP3C739B0FB0";
+const CASHFREE_LIVE_CLIENT_SECRET = "cfsk_ma_prod_e9009df537fc366be97ed9dad2d52095_c02d5440cashfree.js";
 
-export const initiatePanVerification = async (req, res) => {
+export const verifyPanWithCashfree = async (req, res) => {
   try {
     const { pan } = req.body;
-    if (!pan) return res.status(400).json({ error: "PAN is required" });
 
-    const { signature } = generateSignature();
-
-    const response = await axios.post(
-      `${BASE_URL}/init`,
-      { pan },
-      {
-        headers: {
-          "x-client-id": process.env.CASHFREE_LIVE_CLIENT_ID,
-          "x-api-signature": signature,
-          "x-api-version": process.env.CASHFREE_API_VERSION,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    return res.json(response.data);
-  } catch (error) {
-    console.error("PAN Verification Error:", error.response?.data || error.message);
-    return res.status(500).json({ error: error.response?.data || "Internal Server Error" });
-  }
-};
-
-export const advancePanVerification = async (req, res) => {
-  try {
-    const { pan, verification_id, name } = req.body;
-    if (!pan || !verification_id || !name) {
-      return res.status(400).json({ error: "pan, verification_id, and name are required" });
+    if (!pan) {
+      return res.status(400).json({ success: false, message: "PAN is required" });
     }
 
+    // ✅ Validate PAN format
+    const isValidPAN = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+    if (!isValidPAN.test(pan)) {
+      return res.status(400).json({ success: false, message: "Invalid PAN format" });
+    }
+
+    // ✅ Call Cashfree PAN 360 API
     const response = await axios.post(
-      ADVANCE_URL,
-      { pan, verification_id, name },
+      "https://api.cashfree.com/verification/v2/pan/360",
+      {
+        pan,
+        consent: "Y",
+      },
       {
         headers: {
-          "x-client-id": process.env.CASHFREE_LIVE_CLIENT_ID,
-          "x-client-secret": process.env.CASHFREE_LIVE_CLIENT_SECRET,
+          Accept: "application/json",
           "Content-Type": "application/json",
+          "x-client-id": CASHFREE_LIVE_CLIENT_ID,
+          "x-client-secret": CASHFREE_LIVE_CLIENT_SECRET,
+          "x-api-version": "2022-01-01",
         },
       }
     );
 
-    return res.json(response.data);
+    const apiData = response.data;
+
+    if (apiData.status !== "SUCCESS") {
+      return res.status(400).json({
+        success: false,
+        message: apiData.message || "PAN verification failed",
+      });
+    }
+
+    const details = apiData.result;
+
+    return res.status(200).json({
+      success: true,
+      message: "PAN verification successful",
+      data: {
+        panNumber: details.pan,
+        fullName: details.full_name,
+      },
+    });
   } catch (error) {
-    console.error("Advance PAN Verification Error:", error.response?.data || error.message);
-    return res.status(500).json({ error: error.response?.data || "Internal Server Error" });
+    console.error("Cashfree PAN error:", error.response?.data || error.message);
+    return res.status(500).json({
+      success: false,
+      message: "PAN verification failed",
+      error: error.response?.data || error.message,
+    });
   }
 };
