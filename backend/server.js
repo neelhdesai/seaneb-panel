@@ -13,6 +13,7 @@ import whatsappRoutes from "./routes/whatsappRoutes.js"
 import forgotPasswordRoutes from "./routes/forgetPassword.js"
 import paymentRoutes from "./routes/payment.js"
 import { Cashfree } from "cashfree-pg";
+import cashfreePanRoutes from "./routes/cashfreePanRoutes.js";
 
 dotenv.config();
 const app = express();
@@ -43,6 +44,7 @@ app.use("/api/pan", panRoutes);
 app.use("/api/whatsapp", whatsappRoutes);
 app.use("/api/password", forgotPasswordRoutes);
 app.use("/api/payment", paymentRoutes);
+app.use("/api/cashfreepan", cashfreePanRoutes);
 
 
 // Server Listen
@@ -50,6 +52,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
+
 
 
 
