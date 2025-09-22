@@ -1,13 +1,13 @@
 import crypto from "crypto";
 import { Cashfree, CFEnvironment } from "cashfree-pg";
 
-// Hardcoded Cashfree credentials
+// Cashfree credentials
 const CASHFREE_CLIENT_ID = "1067081dcdffab8f71f600b71991807601";
 const CASHFREE_CLIENT_SECRET = "cfsk_ma_prod_b233324dab834753a8d0a622603c5d7a_63936c47";
 
-// Initialize Cashfree SDK for production
+// ✅ Initialize Cashfree (Production or Sandbox)
 const cashfree = new Cashfree(
-  CFEnvironment.PRODUCTION, // or CFEnvironment.SANDBOX
+  CFEnvironment.PRODUCTION, // or CFEnvironment.SANDBOX while testing
   CASHFREE_CLIENT_ID,
   CASHFREE_CLIENT_SECRET
 );
@@ -17,7 +17,7 @@ function generateOrderId() {
   const uniqueId = crypto.randomBytes(16).toString("hex");
   const hash = crypto.createHash("sha256");
   hash.update(uniqueId);
-  return hash.digest("hex").substr(0, 12); // 12-character order ID
+  return hash.digest("hex").substr(0, 12);
 }
 
 // Create payment session
@@ -38,7 +38,7 @@ export const createPayment = async (req, res) => {
       customer_details: {
         customer_id: orderId,
         customer_name,
-        customer_email: "example@email.com",
+        customer_email: "example@email.com", // replace if available
         customer_phone,
       },
       order_meta: {
@@ -46,6 +46,7 @@ export const createPayment = async (req, res) => {
       },
     };
 
+    // ✅ Use pg.orders.create (not orders.create)
     const response = await cashfree.pg.orders.create(request);
 
     res.json({
@@ -64,6 +65,7 @@ export const verifyPayment = async (req, res) => {
     const { orderId } = req.body;
     if (!orderId) return res.status(400).json({ error: "Order ID is required" });
 
+    // ✅ Use pg.orders.fetch
     const response = await cashfree.pg.orders.fetch(orderId);
 
     const status = response.order_status === "PAID" ? "success" : "failed";
