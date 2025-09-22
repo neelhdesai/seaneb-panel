@@ -62,8 +62,8 @@ export const verifyGSTWithCashfree = async (req, res) => {
     const result = {
       reference_id: verification_id, // you can replace with apiData.reference_id if returned
       GSTIN: gstin,
-      legal_name_of_business: apiData.legal_name || "",
-      trade_name_of_business: apiData.trade_name || "",
+      legal_name_of_business: apiData.legal_name_of_business || "",
+      trade_name_of_business: apiData.trade_name_of_business || "",
       center_jurisdiction: apiData.center_jurisdiction || "",
       state_jurisdiction: apiData.state_jurisdiction || "",
       date_of_registration: apiData.date_of_registration || "",
