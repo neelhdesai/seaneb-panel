@@ -7,7 +7,7 @@ const CASHFREE_CLIENT_SECRET = "cfsk_ma_prod_b233324dab834753a8d0a622603c5d7a_63
 
 // Initialize Cashfree SDK for production
 const cashfree = new Cashfree({
-  env: CFEnvironment.PRODUCTION,
+  env: CFEnvironment.PRODUCTION, // Use CFEnvironment.SANDBOX for testing
   clientId: CASHFREE_CLIENT_ID,
   clientSecret: CASHFREE_CLIENT_SECRET,
 });
@@ -17,7 +17,7 @@ function generateOrderId() {
   const uniqueId = crypto.randomBytes(16).toString("hex");
   const hash = crypto.createHash("sha256");
   hash.update(uniqueId);
-  return hash.digest("hex").substr(0, 12);
+  return hash.digest("hex").substr(0, 12); // 12-character order ID
 }
 
 // Create payment session
@@ -25,7 +25,12 @@ export const createPayment = async (req, res) => {
   try {
     const { amount = 1.0, currency = "INR", customer_name, customer_phone } = req.body;
 
+    if (!customer_name || !customer_phone) {
+      return res.status(400).json({ error: "Customer name and phone are required" });
+    }
+
     const orderId = generateOrderId();
+
     const request = {
       order_id: orderId,
       order_amount: Number(amount),
@@ -33,7 +38,7 @@ export const createPayment = async (req, res) => {
       customer_details: {
         customer_id: orderId,
         customer_name,
-        customer_email: "example@email.com",
+        customer_email: "example@email.com", // Replace with real email if available
         customer_phone,
       },
       order_meta: {
@@ -41,8 +46,8 @@ export const createPayment = async (req, res) => {
       },
     };
 
-    // Correct method with latest SDK
-    const response = await cashfree.pg.orders.create(request);
+    // Create order using the latest Cashfree SDK
+    const response = await cashfree.orders.create(request);
 
     res.json({
       order_id: orderId,
@@ -60,7 +65,8 @@ export const verifyPayment = async (req, res) => {
     const { orderId } = req.body;
     if (!orderId) return res.status(400).json({ error: "Order ID is required" });
 
-    const response = await cashfree.pg.orders.fetch(orderId);
+    const response = await cashfree.orders.fetch(orderId);
+
     const status = response.order_status === "PAID" ? "success" : "failed";
 
     res.json({ status, data: response });
