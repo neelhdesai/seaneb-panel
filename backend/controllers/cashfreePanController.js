@@ -1,8 +1,8 @@
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid"; // to generate unique verification_id
 
-const CASHFREE_CLIENT_ID = "CF1067081D2VC6P67DP3C739B0FB0";
-const CASHFREE_CLIENT_SECRET = "cfsk_ma_prod_e9009df537fc366be97ed9dad2d52095_c02d5440cashfree.js";
+const CASHFREE_CLIENT_ID = "CF1067081D38D78RGTCCS739KF4S0";
+const CASHFREE_CLIENT_SECRET = "cfsk_ma_prod_208306d235e211f8e730d2ba7921263d_408b70b9";
 
 export const verifyPanWithCashfree = async (req, res) => {
   console.log("🚀 /verify-pan route hit!", req.body);
@@ -65,3 +65,4 @@ export const verifyPanWithCashfree = async (req, res) => {
     });
   }
 };
+
