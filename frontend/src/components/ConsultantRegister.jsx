@@ -211,8 +211,10 @@ export default function ConsultantRegister() {
   };
 
 
- const verifyPAN = async (pan) => {
-  if (!isValidPAN(pan)) {
+4️⃣ Corrected frontend verifyPAN
+const verifyPAN = async (pan) => {
+  const formattedPAN = pan.trim().toUpperCase();
+  if (!isValidPAN(formattedPAN)) {
     setErrors((prev) => ({
       ...prev,
       consultantPan: "Enter valid PAN format (ABCDE1234F)",
@@ -221,7 +223,7 @@ export default function ConsultantRegister() {
     return;
   }
 
-  if (lastVerifiedPan === pan && panVerified) return;
+  if (lastVerifiedPan === formattedPAN && panVerified) return;
 
   const now = Date.now();
   if (now - lastRequestTime < 30000) {
@@ -232,42 +234,36 @@ export default function ConsultantRegister() {
 
   try {
     setLoading(true);
+    const res = await api.post("/api/cashfreepan/verify-pan", { pan: formattedPAN });
 
-    // ✅ Updated API endpoint to match your backend
-  const res = await api.post("/api/cashfreepan/verify-pan", { pan });
-    console.log("Response from backend:", res.data);
-
-
-if (!res.data.success) {
-  setErrors((prev) => ({
-    ...prev,
-    consultantPan: res.data.message || "Invalid PAN",
-  }));
-  setPanVerified(false);
-} else {
-  const details = res.data.data;
-  setFormData((prev) => ({
-    ...prev,
-    name: details.fullName || "",
-  }));
-  setPanVerified(true);
-  setLastVerifiedPan(pan);
-  setLastRequestTime(now);
-  toast.success("PAN verified successfully!");
-}
-
+    if (!res.data.success) {
+      setErrors((prev) => ({
+        ...prev,
+        consultantPan: res.data.message || "Invalid PAN",
+      }));
+      setPanVerified(false);
+    } else {
+      const details = res.data.data;
+      setFormData((prev) => ({
+        ...prev,
+        name: details.registered_name || "",
+      }));
+      setPanVerified(true);
+      setLastVerifiedPan(formattedPAN);
+      setLastRequestTime(now);
+      toast.success("PAN verified successfully!");
+    }
   } catch (err) {
     setErrors((prev) => ({
       ...prev,
-      consultantPan: "PAN verification failed",
+      consultantPan: err.response?.data?.message || "PAN verification failed",
     }));
     setPanVerified(false);
-    console.error(err);
+    console.error(err.response?.data || err.message);
   } finally {
     setLoading(false);
   }
 };
-
 
   const validateStep = () => {
     const newErrors = {};
@@ -708,6 +704,7 @@ const handleSubmit = async (e) => {
     </div>
   );
 }
+
 
 
 
