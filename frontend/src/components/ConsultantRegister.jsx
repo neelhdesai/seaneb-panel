@@ -234,22 +234,24 @@ export default function ConsultantRegister() {
     setLoading(true);
 
     // ✅ Updated API endpoint to match your backend
-    const res = await api.post("/api/cashfreepan/verify-pan", { pan });
+  const res = await api.post("/api/cashfreepan/verify-pan", { pan });
+    console.log("Response from backend:", res.data);
 
-    if (!res.data.success) {
-      setErrors((prev) => ({ ...prev, consultantPan: res.data.message || "Invalid PAN" }));
-      setPanVerified(false);
-    } else {
-      const details = res.data.data;
-      setFormData((prev) => ({
-        ...prev,
-        name: details.fullName || "",
-      }));
-      setPanVerified(true);
-      setLastVerifiedPan(pan);
-      setLastRequestTime(now);
-      toast.success("PAN verified successfully!");
-    }
+
+   if (res.data.status !== "VALID") {
+  setErrors((prev) => ({ ...prev, consultantPan: res.data.message || "Invalid PAN" }));
+  setPanVerified(false);
+} else {
+  const details = res.data;
+  setFormData((prev) => ({
+    ...prev,
+    name: details.registered_name || "",
+  }));
+  setPanVerified(true);
+  setLastVerifiedPan(pan);
+  setLastRequestTime(now);
+  toast.success("PAN verified successfully!");
+}
   } catch (err) {
     setErrors((prev) => ({
       ...prev,
@@ -702,4 +704,5 @@ const handleSubmit = async (e) => {
     </div>
   );
 }
+
 
