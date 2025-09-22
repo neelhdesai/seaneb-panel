@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import api from "../lib/api";
 import { ToastContainer, toast } from "react-toastify";
@@ -19,10 +18,11 @@ export default function VerifyPan() {
     setFullName("");
 
     try {
-      const res = await api.post("/api/pan/verify-pan", { pan });
+      // ✅ Updated API endpoint
+      const res = await api.post("/api/cashfreepan/verify-pan", { pan });
 
       if (res.data.success) {
-        setFullName(res.data.data.fullName); // ✅ only use fullName
+        setFullName(res.data.data.fullName); // only fullName
         toast.success("PAN verified successfully");
       } else {
         toast.error(res.data.message || "PAN verification failed");
