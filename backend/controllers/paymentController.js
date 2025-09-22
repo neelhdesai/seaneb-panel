@@ -1,5 +1,12 @@
 import crypto from "crypto";
-import { Cashfree } from "cashfree-pg";
+import { Cashfree, CFEnvironment } from "cashfree-pg";
+
+// Initialize Cashfree SDK for production
+const cashfree = new Cashfree(
+  CFEnvironment.PRODUCTION,
+  process.env.CF_CLIENT_ID,
+  process.env.CF_CLIENT_SECRET
+);
 
 // Generate unique order ID
 function generateOrderId() {
@@ -15,21 +22,24 @@ export const createPayment = async (req, res) => {
   try {
     const { amount = 1.0, currency = "INR" } = req.query;
 
+    const orderId = generateOrderId();
     const request = {
+      order_id: orderId,
       order_amount: Number(amount),
       order_currency: currency,
-      order_id: generateOrderId(),
       customer_details: {
         customer_id: "webcodder01",
-        customer_phone: "9999999999",
         customer_name: "Web Codder",
         customer_email: "webcodder@example.com",
+        customer_phone: "9999999999",
+      },
+      order_meta: {
+        return_url: `${process.env.CLIENT_URL}/payment/return?orderId=${orderId}`,
       },
     };
 
-    const today = new Date().toISOString().split("T")[0]; // dynamic date
-    const response = await Cashfree.PGCreateOrder(today, request);
-    res.json(response.data);
+    const response = await cashfree.PGCreateOrder(request);
+    res.json({ ...response.data, order_id: orderId });
   } catch (error) {
     console.error("Cashfree createPayment error:", error?.response?.data || error);
     res.status(500).json({ error: "Failed to create payment session" });
@@ -42,9 +52,10 @@ export const verifyPayment = async (req, res) => {
     const { orderId } = req.body;
     if (!orderId) return res.status(400).json({ error: "Order ID is required" });
 
-    const today = new Date().toISOString().split("T")[0]; // dynamic date
-    const response = await Cashfree.PGOrderFetchPayments(today, orderId);
-    res.json(response.data);
+    const response = await cashfree.PGFetchOrder(orderId);
+    const status = response.data?.order_status === "PAID" ? "success" : "failed";
+
+    res.json({ status, data: response.data });
   } catch (error) {
     console.error("Cashfree verifyPayment error:", error?.response?.data || error);
     res.status(500).json({ error: "Failed to verify payment" });
