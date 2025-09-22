@@ -6,29 +6,25 @@ export default function CashfreePayment({ amount = 100, currency = "INR" }) {
   const [cashfree, setCashfree] = useState(null);
   const [orderId, setOrderId] = useState("");
 
-  // Use environment variable for API base URL
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-  // Initialize Cashfree SDK
+  // Load Cashfree SDK
   useEffect(() => {
     const initializeSDK = async () => {
       try {
-        const cf = await load({
-          mode: "PROD", // Use "sandbox" for testing
-        });
+        const cf = await load({ mode: "PROD" }); // Use "sandbox" for testing
         setCashfree(cf);
       } catch (error) {
         console.error("Error loading Cashfree SDK:", error);
       }
     };
-
     initializeSDK();
   }, []);
 
-  // Get payment session ID from backend
+  // Fetch payment session ID from backend
   const getSessionId = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/api/payment`, {
+      const res = await axios.get(`${API_BASE_URL}/payment`, {
         params: { amount, currency },
       });
 
@@ -47,8 +43,7 @@ export default function CashfreePayment({ amount = 100, currency = "INR" }) {
   // Verify payment after checkout
   const verifyPayment = async () => {
     try {
-    const res = await axios.post(`${API_BASE_URL}/api/payment/verify`, { orderId });
-
+      const res = await axios.post(`${API_BASE_URL}/payment/verify`, { orderId });
 
       if (res.data?.status === "success") {
         alert("Payment verified successfully!");
@@ -61,32 +56,24 @@ export default function CashfreePayment({ amount = 100, currency = "INR" }) {
     }
   };
 
-  // Handle Pay Now button click
+  // Handle "Pay Now" button click
   const handleClick = async (e) => {
     e.preventDefault();
-
     if (!cashfree) return alert("Payment SDK is not loaded yet!");
 
     try {
       const sessionId = await getSessionId();
       if (!sessionId) return;
 
-      const checkoutOptions = {
+      await cashfree.checkout({
         paymentSessionId: sessionId,
-        redirectTarget: "_modal", // "_blank" or "_self" also possible
-      };
+        redirectTarget: "_modal", // "_self" or "_blank" also possible
+      });
 
-      try {
-        await cashfree.checkout(checkoutOptions);
-        console.log("Payment initialized");
-        await verifyPayment();
-      } catch (checkoutError) {
-        console.error("Error during checkout:", checkoutError);
-        alert("Payment failed to initialize");
-      }
+      await verifyPayment();
     } catch (error) {
-      console.error("Error initiating payment:", error);
-      alert("Payment initiation failed");
+      console.error("Error during payment:", error);
+      alert("Payment failed");
     }
   };
 
