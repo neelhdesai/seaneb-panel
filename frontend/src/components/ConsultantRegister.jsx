@@ -211,7 +211,7 @@ export default function ConsultantRegister() {
   };
 const verifyPAN = async (pan) => {
   console.log("🔹 Starting PAN verification for:", pan);
-  
+
   if (!isValidPAN(pan)) {
     console.log("❌ Invalid PAN format locally:", pan);
     setErrors((prev) => ({
@@ -240,15 +240,13 @@ const verifyPAN = async (pan) => {
     console.log("📤 Sending request to backend:", { pan });
 
     const res = await api.post("/api/cashfreepan/verify-pan", { pan });
-
     console.log("📥 Response from backend:", res);
     console.log("📄 Response data:", res.data);
 
     if (res.data.status !== "VALID") {
-      console.log("❌ Backend says PAN is invalid:", res.data.message);
-      setErrors((prev) => ({ 
-        ...prev, 
-        consultantPan: res.data.message || "Invalid PAN" 
+      setErrors((prev) => ({
+        ...prev,
+        consultantPan: res.data.message || "Invalid PAN",
       }));
       setPanVerified(false);
     } else {
@@ -263,7 +261,6 @@ const verifyPAN = async (pan) => {
       setLastRequestTime(now);
       toast.success("PAN verified successfully!");
     }
-
   } catch (err) {
     console.error("💥 Error during PAN verification:", err);
     console.error("💥 Axios error response data:", err.response?.data);
@@ -716,6 +713,7 @@ const handleSubmit = async (e) => {
     </div>
   );
 }
+
 
 
 
