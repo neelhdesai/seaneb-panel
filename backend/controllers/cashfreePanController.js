@@ -53,7 +53,7 @@ export const verifyPanWithCashfree = async (req, res) => {
     const signature = generateSignature();
 
     const response = await axios.post(
-      "https://api.cashfree.com/verification/pan/360",
+      "https://api.cashfree.com/verification/pan/advance",
       { pan, verification_id },
       {
         headers: {
@@ -98,3 +98,4 @@ export const verifyPanWithCashfree = async (req, res) => {
     });
   }
 };
+
