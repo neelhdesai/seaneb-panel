@@ -19,7 +19,7 @@ export default function VerifyPan() {
     setFullName("");
 
     try {
-      const res = await api.post("/api/verify-pan", { pan });
+      const res = await api.post("/api/pan/verify-pan", { pan });
 
       if (res.data.success) {
         setFullName(res.data.data.fullName); // ✅ only use fullName
