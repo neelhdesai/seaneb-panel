@@ -210,10 +210,8 @@ export default function ConsultantRegister() {
     }
   };
 const verifyPAN = async (pan) => {
-  console.log("🔹 Starting PAN verification for:", pan);
 
   if (!isValidPAN(pan)) {
-    console.log("❌ Invalid PAN format locally:", pan);
     setErrors((prev) => ({
       ...prev,
       consultantPan: "Enter valid PAN format (ABCDE1234F)",
@@ -230,18 +228,14 @@ const verifyPAN = async (pan) => {
   const now = Date.now();
   if (now - lastRequestTime < 30000) {
     const sec = Math.ceil((30000 - (now - lastRequestTime)) / 1000);
-    console.log(`⏱ Waiting ${sec}s before next verification attempt`);
     toast.warning(`Please wait ${sec}s before verifying again.`);
     return;
   }
 
   try {
     setLoading(true);
-    console.log("📤 Sending request to backend:", { pan });
 
     const res = await api.post("/api/cashfreepan/verify-pan", { pan });
-    console.log("📥 Response from backend:", res);
-    console.log("📄 Response data:", res.data);
 
     if (res.data.status !== "VALID") {
       setErrors((prev) => ({
@@ -251,7 +245,6 @@ const verifyPAN = async (pan) => {
       setPanVerified(false);
     } else {
       const details = res.data;
-      console.log("✅ PAN verified successfully! Details:", details);
       setFormData((prev) => ({
         ...prev,
         name: details.registered_name || "",
@@ -713,6 +706,7 @@ const handleSubmit = async (e) => {
     </div>
   );
 }
+
 
 
 
