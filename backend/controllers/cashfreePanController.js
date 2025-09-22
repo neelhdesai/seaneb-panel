@@ -77,17 +77,19 @@ export const verifyPanWithCashfree = async (req, res) => {
     }
 
     const details = apiData.result;
-    return res.status(200).json({
-      success: true,
-      message: "PAN verification successful",
-      data: {
-        panNumber: details.pan,
-        fullName: `${details.first_name} ${details.last_name}`,
-        email: details.email,
-        mobile: details.mobile,
-        address: details.address,
-      },
-    });
+
+return res.status(200).json({
+  success: true,
+  status: "VALID", // must include this for frontend
+  message: "PAN verified successfully",
+  pan: details.pan,
+  registered_name: details.registered_name || `${details.first_name} ${details.last_name}`,
+  first_name: details.first_name,
+  last_name: details.last_name,
+  email: details.email,
+  mobile_number: details.mobile_number, // match frontend
+  address: details.address,
+});
 
   } catch (error) {
     console.error("💥 Cashfree PAN error:", error.response?.data || error.message);
@@ -98,4 +100,5 @@ export const verifyPanWithCashfree = async (req, res) => {
     });
   }
 };
+
 
