@@ -1,5 +1,5 @@
 import express from "express";
-import { verifyGSTWithCashfree } from "../controllers/cashfreeGstController.js";
+import {verifyGSTWithCashfree} from "../controllers/cashfreeGstController.js";
 
 const router = express.Router();
 
