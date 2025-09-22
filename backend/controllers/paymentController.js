@@ -1,12 +1,12 @@
 import crypto from "crypto";
 import { Cashfree, CFEnvironment } from "cashfree-pg";
 
+// Hardcoded Cashfree credentials
+const CASHFREE_CLIENT_ID = "1067081dcdffab8f71f600b71991807601";
+const CASHFREE_CLIENT_SECRET = "cfsk_ma_prod_b233324dab834753a8d0a622603c5d7a_63936c47";
+
 // Initialize Cashfree SDK for production
-const cashfree = new Cashfree(
-  CFEnvironment.PRODUCTION,
-  process.env.CF_CLIENT_ID,
-  process.env.CF_CLIENT_SECRET
-);
+const cashfree = new Cashfree(CFEnvironment.PRODUCTION, CASHFREE_CLIENT_ID, CASHFREE_CLIENT_SECRET);
 
 // Generate unique order ID
 function generateOrderId() {
@@ -14,7 +14,7 @@ function generateOrderId() {
   const hash = crypto.createHash("sha256");
   hash.update(uniqueId);
   const orderId = hash.digest("hex");
-  return orderId.substr(0, 12);
+  return orderId.substr(0, 12); // 12-character order ID
 }
 
 // Create payment session
@@ -23,15 +23,15 @@ export const createPayment = async (req, res) => {
     const { amount = 1.0, currency = "INR" } = req.query;
 
     const orderId = generateOrderId();
-    const request = {
+   const request = {
       order_id: orderId,
       order_amount: Number(amount),
       order_currency: currency,
       customer_details: {
-        customer_id: "webcodder01",
-        customer_name: "Web Codder",
-        customer_email: "webcodder@example.com",
-        customer_phone: "9999999999",
+        customer_id: "neeldesai01",
+        customer_name: "Neel Desai",
+        customer_email: "neeldesai@example.com", 
+        customer_phone: "8160026509",
       },
       order_meta: {
         return_url: `${process.env.CLIENT_URL}/payment/return?orderId=${orderId}`,
