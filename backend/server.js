@@ -13,6 +13,7 @@ import whatsappRoutes from "./routes/whatsappRoutes.js"
 import forgotPasswordRoutes from "./routes/forgetPassword.js"
 import paymentRoutes from "./routes/payment.js"
 import cashfreePanRoutes from "./routes/cashfreePanRoutes.js";
+import gstRoutes from "./routes/gstRoutes.js";
 import { Cashfree } from "cashfree-pg";
 
 
@@ -46,6 +47,7 @@ app.use("/api/whatsapp", whatsappRoutes);
 app.use("/api/password", forgotPasswordRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/cashfreepan", cashfreePanRoutes);
+app.use("/api/cashfreegst", gstRoutes);
 
 
 // Server Listen
@@ -53,6 +55,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
 });
+
 
 
 
