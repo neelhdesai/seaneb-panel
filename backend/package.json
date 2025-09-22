@@ -12,6 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+     "uuid": "^13.0.0",
     "axios": "^1.11.0",
     "bcryptjs": "^3.0.2",
     "cashfree-verification": "^3.0.0",
