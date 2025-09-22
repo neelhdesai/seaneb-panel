@@ -21,9 +21,9 @@ export default function CashfreePayment({ amount = 100, currency = "INR" }) {
     initializeSDK();
   }, []);
 
-  const getSessionId = async () => {
+ const getSessionId = async () => {
   try {
-    const res = await axios.post(`${API_BASE_URL}/payment`, {
+    const res = await axios.post(`${API_BASE_URL}/api/payment`, {
       amount,
       currency,
       customer_name: "Neel Desai",
