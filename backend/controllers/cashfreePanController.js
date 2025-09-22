@@ -2,9 +2,8 @@ import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
 
-// Cashfree credentials
-const CASHFREE_CLIENT_ID = "CF1067081D38D78RGTCCS739KF4S0";
-const CASHFREE_CLIENT_SECRET = "cfsk_ma_prod_208306d235e211f8e730d2ba7921263d_408b70b9";
+const CASHFREE_CLIENT_ID = process.env.CASHFREE_CLIENT_ID;
+const CASHFREE_CLIENT_SECRET = process.env.CASHFREE_CLIENT_SECRET;
 
 // 2FA Public Key (you provided)
 const PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
@@ -97,6 +96,7 @@ return res.status(200).json({
     });
   }
 };
+
 
 
 
