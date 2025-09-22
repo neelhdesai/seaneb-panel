@@ -8,7 +8,8 @@ import ChangePassword from "./components/ChangePassword";
 import ConsultantRegister from "./components/ConsultantRegister";
 import ConsultantApproval from "./components/ConsultantApproval";
 import MyBusinesses from "./components/MyBusinesses";
-import PaymentSuccess from "./components/PaymentSuccess"
+import PaymentSuccess from "./components/PaymentSuccess";
+import VerifyPan from "./components/VerifyPan";
 
 
 import { ToastContainer } from "react-toastify";
@@ -17,6 +18,7 @@ import MyProfile from "./components/MyProfile";
 import ForgotPassword from "./components/ForgotPassword";
 import Hero from "./components/Hero";
 import CashfreePayment from "./components/Payment";
+
 
 function App() {
   return (
@@ -29,6 +31,7 @@ function App() {
         <Route path="/payment" element={<CashfreePayment />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/payment-success" element={<PaymentSuccess />} />
+        <Route path="/verify-pan" element={<VerifyPan />} />
         {/* Consultant routes */}
         <Route
           path="/business-register"
