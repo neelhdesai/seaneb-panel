@@ -209,9 +209,6 @@ export default function ConsultantRegister() {
 
     }
   };
-
-
-4️⃣ Corrected frontend verifyPAN
 const verifyPAN = async (pan) => {
   const formattedPAN = pan.trim().toUpperCase();
   if (!isValidPAN(formattedPAN)) {
@@ -704,6 +701,7 @@ const handleSubmit = async (e) => {
     </div>
   );
 }
+
 
 
 
