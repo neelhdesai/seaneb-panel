@@ -210,8 +210,10 @@ export default function ConsultantRegister() {
     }
   };
 const verifyPAN = async (pan) => {
-  const formattedPAN = pan.trim().toUpperCase();
-  if (!isValidPAN(formattedPAN)) {
+  console.log("🔹 Starting PAN verification for:", pan);
+  
+  if (!isValidPAN(pan)) {
+    console.log("❌ Invalid PAN format locally:", pan);
     setErrors((prev) => ({
       ...prev,
       consultantPan: "Enter valid PAN format (ABCDE1234F)",
@@ -220,43 +222,56 @@ const verifyPAN = async (pan) => {
     return;
   }
 
-  if (lastVerifiedPan === formattedPAN && panVerified) return;
+  if (lastVerifiedPan === pan && panVerified) {
+    console.log("✅ PAN already verified:", pan);
+    return;
+  }
 
   const now = Date.now();
   if (now - lastRequestTime < 30000) {
     const sec = Math.ceil((30000 - (now - lastRequestTime)) / 1000);
+    console.log(`⏱ Waiting ${sec}s before next verification attempt`);
     toast.warning(`Please wait ${sec}s before verifying again.`);
     return;
   }
 
   try {
     setLoading(true);
-    const res = await api.post("/api/cashfreepan/verify-pan", { pan: formattedPAN });
+    console.log("📤 Sending request to backend:", { pan });
 
-    if (!res.data.success) {
-      setErrors((prev) => ({
-        ...prev,
-        consultantPan: res.data.message || "Invalid PAN",
+    const res = await api.post("/api/cashfreepan/verify-pan", { pan });
+
+    console.log("📥 Response from backend:", res);
+    console.log("📄 Response data:", res.data);
+
+    if (res.data.status !== "VALID") {
+      console.log("❌ Backend says PAN is invalid:", res.data.message);
+      setErrors((prev) => ({ 
+        ...prev, 
+        consultantPan: res.data.message || "Invalid PAN" 
       }));
       setPanVerified(false);
     } else {
-      const details = res.data.data;
+      const details = res.data;
+      console.log("✅ PAN verified successfully! Details:", details);
       setFormData((prev) => ({
         ...prev,
         name: details.registered_name || "",
       }));
       setPanVerified(true);
-      setLastVerifiedPan(formattedPAN);
+      setLastVerifiedPan(pan);
       setLastRequestTime(now);
       toast.success("PAN verified successfully!");
     }
+
   } catch (err) {
+    console.error("💥 Error during PAN verification:", err);
+    console.error("💥 Axios error response data:", err.response?.data);
     setErrors((prev) => ({
       ...prev,
-      consultantPan: err.response?.data?.message || "PAN verification failed",
+      consultantPan: "PAN verification failed",
     }));
     setPanVerified(false);
-    console.error(err.response?.data || err.message);
   } finally {
     setLoading(false);
   }
@@ -701,6 +716,7 @@ const handleSubmit = async (e) => {
     </div>
   );
 }
+
 
 
 
