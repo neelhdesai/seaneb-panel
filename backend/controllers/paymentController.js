@@ -1,5 +1,3 @@
-So your corrected controller should look like this:
-
 import crypto from "crypto";
 import { Cashfree, CFEnvironment } from "cashfree-pg";
 
