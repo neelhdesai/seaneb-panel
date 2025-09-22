@@ -6,7 +6,8 @@ export default function CashfreePayment({ amount = 100, currency = "INR" }) {
   const [cashfree, setCashfree] = useState(null);
   const [orderId, setOrderId] = useState("");
 
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  // Hardcoded backend URL
+  const API_BASE_URL = "https://seaneb.onrender.com";
 
   // Load Cashfree SDK
   useEffect(() => {
@@ -21,31 +22,34 @@ export default function CashfreePayment({ amount = 100, currency = "INR" }) {
     initializeSDK();
   }, []);
 
- const getSessionId = async () => {
-  try {
-    const res = await axios.post(`${API_BASE_URL}/api/payment`, {
-      amount,
-      currency,
-      customer_name: "Neel Desai",
-      customer_phone: "8160026509",
-    });
+  // Create order and get payment session
+  const getSessionId = async () => {
+    try {
+      const res = await axios.post(`${API_BASE_URL}/api/payment/create-order`, {
+        order_amount: amount.toString(),
+        order_currency: currency,
+        customer_name: "Neel Desai",
+        customer_email: "neel@example.com",
+        customer_phone: "8160026509",
+        order_note: "Test Payment",
+      });
 
-    if (res.data?.order_id && res.data?.payment_session_id) {
-      setOrderId(res.data.order_id);
-      return res.data.payment_session_id;
-    } else {
-      throw new Error("No payment session returned from backend");
+      if (res.data?.order_id && res.data?.payment_session_id) {
+        setOrderId(res.data.order_id);
+        return res.data.payment_session_id;
+      } else {
+        throw new Error("No payment session returned from backend");
+      }
+    } catch (error) {
+      console.error("Error fetching payment session:", error);
+      alert("Failed to create payment session");
     }
-  } catch (error) {
-    console.error("Error fetching payment session:", error);
-    alert("Failed to create payment session");
-  }
-};
+  };
 
   // Verify payment after checkout
   const verifyPayment = async () => {
     try {
-      const res = await axios.post(`${API_BASE_URL}/payment/verify`, { orderId });
+      const res = await axios.post(`${API_BASE_URL}/api/payment/verify`, { orderId });
 
       if (res.data?.status === "success") {
         alert("Payment verified successfully!");
