@@ -1,4 +1,5 @@
 import axios from "axios";
+import { v4 as uuidv4 } from "uuid"; // to generate unique verification_id
 
 const CASHFREE_CLIENT_ID = "CF1067081D2VC6P67DP3C739B0FB0";
 const CASHFREE_CLIENT_SECRET = "cfsk_ma_prod_e9009df537fc366be97ed9dad2d52095_c02d5440cashfree.js";
@@ -15,11 +16,13 @@ export const verifyPanWithCashfree = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid PAN format" });
     }
 
-    console.log("🔗 Calling Cashfree API with PAN:", pan);
+    const verification_id = `verify_${uuidv4().replace(/-/g, "")}`.slice(0, 50); // max 50 chars
+
+    console.log("🔗 Calling Cashfree PAN 360 API with PAN:", pan);
 
     const response = await axios.post(
-      "https://kyc.cashfree.com/api/v2/pan/verify",
-      { pan, consent: "Y" },
+      "https://api.cashfree.com/verification/pan/360",
+      { pan, verification_id },
       {
         headers: {
           Accept: "application/json",
@@ -33,17 +36,24 @@ export const verifyPanWithCashfree = async (req, res) => {
     const apiData = response.data;
     console.log("✅ Cashfree API response:", apiData);
 
-    if (!apiData.status || apiData.status !== "SUCCESS") {
+    if (apiData.status !== "SUCCESS") {
       return res.status(400).json({
         success: false,
         message: apiData.message || "PAN verification failed",
       });
     }
 
+    const details = apiData.result;
     return res.status(200).json({
       success: true,
       message: "PAN verification successful",
-      data: { panNumber: apiData.data.pan, fullName: apiData.data.full_name },
+      data: {
+        panNumber: details.pan,
+        fullName: `${details.first_name} ${details.last_name}`,
+        email: details.email,          // masked
+        mobile: details.mobile,        // masked
+        address: details.address,      // if available
+      },
     });
 
   } catch (error) {
