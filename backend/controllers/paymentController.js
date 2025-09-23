@@ -1,12 +1,5 @@
 // controllers/paymentController.js
-import CashfreePG from "cashfree-pg";
-
-// Initialize CashfreePG SDK
-const cashfree = new CashfreePG(
-  "1067081dcdffab8f71f600b71991807601", // App ID
-  "cfsk_ma_prod_b233324dab834753a8d0a622603c5d7a_63936c47", // Secret Key
-  "PROD" // Change to "SANDBOX" for testing
-);
+import { createOrder as cfCreateOrder, fetchOrder as cfFetchOrder } from "cashfree-pg";
 
 // ---------------- CREATE ORDER ----------------
 export const createOrder = async (req, res) => {
@@ -23,6 +16,8 @@ export const createOrder = async (req, res) => {
     } = req.body;
 
     const request = {
+      appId: "1067081dcdffab8f71f600b71991807601",
+      secretKey: "cfsk_ma_prod_b233324dab834753a8d0a622603c5d7a_63936c47",
       order_amount: Number(order_amount),
       order_currency,
       customer_details: {
@@ -35,12 +30,13 @@ export const createOrder = async (req, res) => {
         return_url: "https://admin.seaneb.com/payment-success?order_id={order_id}",
       },
       order_note,
+      environment: "PROD", // or "SANDBOX"
     };
 
     console.log("🚀 Sending request to Cashfree:", JSON.stringify(request, null, 2));
 
-    // Create order using v4 SDK
-    const response = await cashfree.createOrder(request);
+    // Create order
+    const response = await cfCreateOrder(request);
 
     console.log("✅ Cashfree Order Response:", response);
 
@@ -62,8 +58,12 @@ export const verifyOrder = async (req, res) => {
     const { orderId } = req.body;
     console.log(`🔍 Verifying order: ${orderId}`);
 
-    // Fetch order details
-    const response = await cashfree.fetchOrder(orderId);
+    const response = await cfFetchOrder({
+      appId: "1067081dcdffab8f71f600b71991807601",
+      secretKey: "cfsk_ma_prod_b233324dab834753a8d0a622603c5d7a_63936c47",
+      orderId,
+      environment: "PROD", // or "SANDBOX"
+    });
 
     console.log("✅ Order Verification Response:", response);
 
