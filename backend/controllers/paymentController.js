@@ -1,94 +1,75 @@
-import { useEffect, useState } from "react";
-import axios from "axios";
-import { load } from "@cashfreepayments/cashfree-js";
+import { Cashfree, CFEnvironment } from "cashfree-pg";
 
-export default function CashfreePayment({ amount = 100, currency = "INR" }) {
-  const [cashfree, setCashfree] = useState(null);
-  const [orderId, setOrderId] = useState("");
+// Initialize Cashfree SDK with your credentials
+const cashfree = new Cashfree(
+  CFEnvironment.PRODUCTION, // Use CFEnvironment.SANDBOX for testing
+  "1067081dcdffab8f71f600b71991807601", // App ID
+  "cfsk_ma_prod_b233324dab834753a8d0a622603c5d7a_63936c47" // Secret Key
+);
 
-  // Hardcoded backend URL
-  const API_BASE_URL = "https://seaneb.onrender.com";
+// ---------------- CREATE ORDER ----------------
+export const createOrder = async (req, res) => {
+  try {
+    console.log("📥 Incoming request body:", req.body);
 
-  // Load Cashfree SDK
-  useEffect(() => {
-    const initializeSDK = async () => {
-      try {
-        const cf = await load({ mode: "PROD" }); // Use "sandbox" for testing
-        setCashfree(cf);
-      } catch (error) {
-        console.error("Error loading Cashfree SDK:", error);
-      }
+    const {
+      order_amount,
+      order_currency,
+      customer_name,
+      customer_email,
+      customer_phone,
+      order_note,
+    } = req.body;
+
+    const request = {
+      order_amount: Number(order_amount),
+      order_currency,
+      customer_details: {
+        customer_id: "cust_" + Date.now(),
+        customer_name,
+        customer_email,
+        customer_phone,
+      },
+      order_meta: {
+        return_url: "https://admin.seaneb.com/payment-success?order_id={order_id}",
+      },
+      order_note,
     };
-    initializeSDK();
-  }, []);
 
-  // Create order and get payment session
-  const getSessionId = async () => {
-    try {
-      const res = await axios.post(`${API_BASE_URL}/api/payment/create-order`, {
-        order_amount: amount.toString(),
-        order_currency: currency,
-        customer_name: "Neel Desai",
-        customer_email: "neel@example.com",
-        customer_phone: "8160026509",
-        order_note: "Test Payment",
-      });
+    console.log("🚀 Sending request to Cashfree:", JSON.stringify(request, null, 2));
 
-      if (res.data?.order_id && res.data?.payment_session_id) {
-        setOrderId(res.data.order_id);
-        return res.data.payment_session_id;
-      } else {
-        throw new Error("No payment session returned from backend");
-      }
-    } catch (error) {
-      console.error("Error fetching payment session:", error);
-      alert("Failed to create payment session");
+    // Create order
+    const response = await cashfree.PGCreateOrder(request);
+
+    console.log("✅ Cashfree Order Response:", response.data);
+
+    res.json(response.data);
+  } catch (error) {
+    console.error("💥 Cashfree Order Error Details:");
+    console.error("Message:", error.message);
+    console.error("Stack:", error.stack);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// ---------------- VERIFY ORDER ----------------
+export const verifyOrder = async (req, res) => {
+  try {
+    const { orderId } = req.body;
+    console.log(`🔍 Verifying order: ${orderId}`);
+
+    const version = "2023-08-01";
+    const response = await cashfree.PGFetchOrder(version, orderId);
+
+    console.log("✅ Order Verification Response:", response.data);
+
+    if (response.data.order_status === "PAID") {
+      res.json({ status: "success", data: response.data });
+    } else {
+      res.json({ status: "failed", data: response.data });
     }
-  };
-
-  // Verify payment after checkout
-  const verifyPayment = async () => {
-    try {
-      const res = await axios.post(`${API_BASE_URL}/api/payment/verify`, { orderId });
-
-      if (res.data?.status === "success") {
-        alert("Payment verified successfully!");
-      } else {
-        alert("Payment verification failed.");
-      }
-    } catch (error) {
-      console.error("Error verifying payment:", error);
-      alert("Error verifying payment");
-    }
-  };
-
-  // Handle "Pay Now" button click
-  const handleClick = async (e) => {
-    e.preventDefault();
-    if (!cashfree) return alert("Payment SDK is not loaded yet!");
-
-    try {
-      const sessionId = await getSessionId();
-      if (!sessionId) return;
-
-      await cashfree.checkout({
-        paymentSessionId: sessionId,
-        redirectTarget: "_modal", // "_self" or "_blank" also possible
-      });
-
-      await verifyPayment();
-    } catch (error) {
-      console.error("Error during payment:", error);
-      alert("Payment failed");
-    }
-  };
-
-  return (
-    <div>
-      <h1>Cashfree Payment Gateway</h1>
-      <button onClick={handleClick} disabled={!cashfree}>
-        Pay Now
-      </button>
-    </div>
-  );
-}
+  } catch (error) {
+    console.error("💥 Cashfree Verify Error:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+};
