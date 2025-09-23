@@ -1,5 +1,6 @@
 // controllers/paymentController.js
-import { createOrder as cfCreateOrder, fetchOrder as cfFetchOrder } from "cashfree-pg";
+import cashfreePG from "cashfree-pg"; // default import
+const { createOrder: cfCreateOrder, fetchOrder: cfFetchOrder } = cashfreePG;
 
 // ---------------- CREATE ORDER ----------------
 export const createOrder = async (req, res) => {
