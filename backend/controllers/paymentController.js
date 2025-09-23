@@ -30,8 +30,10 @@ export const createCashfreeOrder = async (req, res) => {
 
     console.log("🚀 Sending request to Cashfree:", JSON.stringify(request, null, 2));
 
-    // ✅ Wrap inside { request }
-    const response = await Cashfree.PGCreateOrder({ request });
+    // ✅ Correct call
+    const response = await Cashfree.PGCreateOrder({
+      createOrderRequest: request,
+    });
 
     console.log("✅ Cashfree API Response:", JSON.stringify(response.data, null, 2));
     return res.status(200).json(response.data);
