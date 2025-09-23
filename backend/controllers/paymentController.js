@@ -14,7 +14,7 @@ export const createCashfreeOrder = async (req, res) => {
     const { order_amount, customer_name, customer_email, customer_phone, order_note } = req.body;
 
     const request = {
-      order_amount: Number(order_amount) || 1, // must be number
+      order_amount: Number(order_amount) || 1,
       order_currency: "INR",
       customer_details: {
         customer_id: `cust_${Date.now()}`,
@@ -30,10 +30,10 @@ export const createCashfreeOrder = async (req, res) => {
 
     console.log("🚀 Sending request to Cashfree:", JSON.stringify(request, null, 2));
 
-    const response = await Cashfree.PGCreateOrder(request);
+    // ✅ Wrap inside { request }
+    const response = await Cashfree.PGCreateOrder({ request });
 
     console.log("✅ Cashfree API Response:", JSON.stringify(response.data, null, 2));
-
     return res.status(200).json(response.data);
   } catch (error) {
     console.error("💥 Cashfree Order Error Details:");
