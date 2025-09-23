@@ -1,6 +1,11 @@
-// controllers/paymentController.js
-import cashfreePG from "cashfree-pg"; // default import
-const { createOrder: cfCreateOrder, fetchOrder: cfFetchOrder } = cashfreePG;
+import { Cashfree, CFEnvironment } from "cashfree-pg";
+
+// Initialize Cashfree SDK
+const cashfree = new Cashfree(
+  CFEnvironment.PRODUCTION, // Use CFEnvironment.SANDBOX for testing
+  "1067081dcdffab8f71f600b71991807601", // App ID
+  "cfsk_ma_prod_b233324dab834753a8d0a622603c5d7a_63936c47" // Secret Key
+);
 
 // ---------------- CREATE ORDER ----------------
 export const createOrder = async (req, res) => {
@@ -17,8 +22,6 @@ export const createOrder = async (req, res) => {
     } = req.body;
 
     const request = {
-      appId: "1067081dcdffab8f71f600b71991807601",
-      secretKey: "cfsk_ma_prod_b233324dab834753a8d0a622603c5d7a_63936c47",
       order_amount: Number(order_amount),
       order_currency,
       customer_details: {
@@ -31,13 +34,13 @@ export const createOrder = async (req, res) => {
         return_url: "https://admin.seaneb.com/payment-success?order_id={order_id}",
       },
       order_note,
-      environment: "PROD", // or "SANDBOX"
+      environment: "PROD", // or SANDBOX
     };
 
-    console.log("🚀 Sending request to Cashfree:", JSON.stringify(request, null, 2));
+    console.log("🚀 Sending request to Cashfree:", request);
 
     // Create order
-    const response = await cfCreateOrder(request);
+    const response = await cashfree.PGCreateOrder(request);
 
     console.log("✅ Cashfree Order Response:", response);
 
@@ -59,12 +62,7 @@ export const verifyOrder = async (req, res) => {
     const { orderId } = req.body;
     console.log(`🔍 Verifying order: ${orderId}`);
 
-    const response = await cfFetchOrder({
-      appId: "1067081dcdffab8f71f600b71991807601",
-      secretKey: "cfsk_ma_prod_b233324dab834753a8d0a622603c5d7a_63936c47",
-      orderId,
-      environment: "PROD", // or "SANDBOX"
-    });
+    const response = await cashfree.PGFetchOrder("2023-08-01", orderId);
 
     console.log("✅ Order Verification Response:", response);
 
