@@ -2,9 +2,9 @@ import { Cashfree, CFEnvironment } from "cashfree-pg";
 
 // Initialize Cashfree SDK with your credentials
 const cashfree = new Cashfree(
-  CFEnvironment.PRODUCTION, // Use CFEnvironment.SANDBOX for testing
-  "1067081dcdffab8f71f600b71991807601", // App ID
-  "cfsk_ma_prod_b233324dab834753a8d0a622603c5d7a_63936c47" // Secret Key
+  CFEnvironment.PRODUCTION,
+  "1067081dcdffab8f71f600b71991807601",
+  "cfsk_ma_prod_b233324dab834753a8d0a622603c5d7a_63936c47"
 );
 
 // ---------------- CREATE ORDER ----------------
@@ -38,12 +38,12 @@ export const createOrder = async (req, res) => {
 
     console.log("🚀 Sending request to Cashfree:", JSON.stringify(request, null, 2));
 
-    // Create order
-    const response = await cashfree.PGCreateOrder(request);
+    // ✅ Updated function
+    const response = await cashfree.orders.createOrder(request);
 
-    console.log("✅ Cashfree Order Response:", response.data);
+    console.log("✅ Cashfree Order Response:", response);
 
-    res.json(response.data);
+    res.json(response);
   } catch (error) {
     console.error("💥 Cashfree Order Error Details:");
     console.error("Message:", error.message);
@@ -59,14 +59,14 @@ export const verifyOrder = async (req, res) => {
     console.log(`🔍 Verifying order: ${orderId}`);
 
     const version = "2023-08-01";
-    const response = await cashfree.PGFetchOrder(version, orderId);
+    const response = await cashfree.orders.fetchOrder(version, orderId);
 
-    console.log("✅ Order Verification Response:", response.data);
+    console.log("✅ Order Verification Response:", response);
 
-    if (response.data.order_status === "PAID") {
-      res.json({ status: "success", data: response.data });
+    if (response.order_status === "PAID") {
+      res.json({ status: "success", data: response });
     } else {
-      res.json({ status: "failed", data: response.data });
+      res.json({ status: "failed", data: response });
     }
   } catch (error) {
     console.error("💥 Cashfree Verify Error:", error.message);
