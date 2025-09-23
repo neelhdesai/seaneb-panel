@@ -1,10 +1,11 @@
-import { Cashfree, CFEnvironment } from "cashfree-pg";
+// controllers/paymentController.js
+import CashfreePG from "cashfree-pg";
 
-// Initialize Cashfree SDK with your credentials
-const cashfree = new Cashfree(
-  CFEnvironment.PRODUCTION,
-  "1067081dcdffab8f71f600b71991807601",
-  "cfsk_ma_prod_b233324dab834753a8d0a622603c5d7a_63936c47"
+// Initialize CashfreePG SDK
+const cashfree = new CashfreePG(
+  "1067081dcdffab8f71f600b71991807601", // App ID
+  "cfsk_ma_prod_b233324dab834753a8d0a622603c5d7a_63936c47", // Secret Key
+  "PROD" // Change to "SANDBOX" for testing
 );
 
 // ---------------- CREATE ORDER ----------------
@@ -14,11 +15,11 @@ export const createOrder = async (req, res) => {
 
     const {
       order_amount,
-      order_currency,
+      order_currency = "INR",
       customer_name,
       customer_email,
       customer_phone,
-      order_note,
+      order_note = "",
     } = req.body;
 
     const request = {
@@ -38,17 +39,20 @@ export const createOrder = async (req, res) => {
 
     console.log("🚀 Sending request to Cashfree:", JSON.stringify(request, null, 2));
 
-    // ✅ Updated function
-    const response = await cashfree.orders.createOrder(request);
+    // Create order using v4 SDK
+    const response = await cashfree.createOrder(request);
 
     console.log("✅ Cashfree Order Response:", response);
 
-    res.json(response);
+    res.json({
+      success: true,
+      order_id: response.order_id,
+      payment_session_id: response.payment_session_id,
+      message: "Order created successfully",
+    });
   } catch (error) {
-    console.error("💥 Cashfree Order Error Details:");
-    console.error("Message:", error.message);
-    console.error("Stack:", error.stack);
-    res.status(500).json({ error: error.message });
+    console.error("💥 Cashfree Order Error:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
@@ -58,8 +62,8 @@ export const verifyOrder = async (req, res) => {
     const { orderId } = req.body;
     console.log(`🔍 Verifying order: ${orderId}`);
 
-    const version = "2023-08-01";
-    const response = await cashfree.orders.fetchOrder(version, orderId);
+    // Fetch order details
+    const response = await cashfree.fetchOrder(orderId);
 
     console.log("✅ Order Verification Response:", response);
 
@@ -69,7 +73,7 @@ export const verifyOrder = async (req, res) => {
       res.json({ status: "failed", data: response });
     }
   } catch (error) {
-    console.error("💥 Cashfree Verify Error:", error.message);
+    console.error("💥 Cashfree Verify Error:", error);
     res.status(500).json({ error: error.message });
   }
 };
