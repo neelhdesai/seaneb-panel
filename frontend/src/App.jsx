@@ -8,17 +8,14 @@ import ChangePassword from "./components/ChangePassword";
 import ConsultantRegister from "./components/ConsultantRegister";
 import ConsultantApproval from "./components/ConsultantApproval";
 import MyBusinesses from "./components/MyBusinesses";
-import PaymentSuccess from "./components/PaymentSuccess";
-import VerifyPan from "./components/VerifyPan";
-
 
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import MyProfile from "./components/MyProfile";
 import ForgotPassword from "./components/ForgotPassword";
 import Hero from "./components/Hero";
-import CashfreePayment from "./components/Payment";
-
+import CommissionPage from "./components/commissionData";
+import HowAppWorks from "./components/HowAppWorks";
 
 function App() {
   return (
@@ -28,11 +25,8 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/consultant" element={<Hero />} />
         <Route path="/consultant-registration" element={<ConsultantRegister />} />
-        <Route path="/payment" element={<CashfreePayment />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/payment-success" element={<PaymentSuccess />} />
-        <Route path="/verify-pan" element={<VerifyPan />} />
-        {/* Consultant routes */}
+
         <Route
           path="/business-register"
           element={
@@ -75,7 +69,6 @@ function App() {
           }
         />
 
-        {/* Change password accessible to all logged-in users */}
         <Route
           path="/change-password"
           element={
@@ -84,6 +77,34 @@ function App() {
                 <Sidebar />
                 <main className="flex-1 p-4">
                   <ChangePassword />
+                </main>
+              </div>
+            </PrivateRoute>
+          }
+        />
+
+         <Route
+          path="/payout-structure"
+          element={
+            <PrivateRoute>
+              <div className="flex min-h-screen bg-gray-100">
+                <Sidebar />
+                <main className="flex-1 p-4">
+                  <CommissionPage />
+                </main>
+              </div>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/how-app-works"
+          element={
+            <PrivateRoute>
+              <div className="flex min-h-screen bg-gray-100">
+                <Sidebar />
+                <main className="flex-1 p-4">
+                  <HowAppWorks />
                 </main>
               </div>
             </PrivateRoute>
