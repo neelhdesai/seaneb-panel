@@ -1,5 +1,5 @@
 import { NavLink, useLocation, useNavigate, Outlet } from "react-router";
-import { Menu, LogOut, Briefcase, KeyRound, X, UserRoundPlus, Handshake, User } from "lucide-react";
+import { Menu, LogOut, Briefcase, KeyRound, X, UserRoundPlus, Handshake, User, IndianRupee, BookOpen } from "lucide-react";
 import { useState, useEffect } from "react";
 import "../SidebarLayout.css";
 import { usePendingConsultants } from "../context/PendingConsultantsContext";
@@ -25,6 +25,8 @@ export default function SidebarLayout() {
     navItems.push(
       { to: "/user-business", label: "User Business", icon: <Briefcase /> },
       { to: "/new-consultant", label: "Consultants", icon: <UserRoundPlus /> },
+      { to: "/how-app-works", label: "How App Works", icon: <BookOpen  /> },
+      { to: "/payout-structure", label: "Payout Structure", icon: <IndianRupee /> },
       { to: "/my-profile", label: "My Profile", icon: <User /> },
       { to: "/change-password", label: "Change Password", icon: <KeyRound /> }
     );
@@ -32,8 +34,12 @@ export default function SidebarLayout() {
     navItems.push(
       { to: "/business-register", label: "Business Register", icon: <Briefcase /> },
       { to: "/my-business", label: "My Business", icon: <Handshake /> },
+      { to: "/how-app-works", label: "How App Works", icon: <BookOpen  /> }
+,
+      { to: "/payout-structure", label: "Payout Structure", icon: <IndianRupee /> },
       { to: "/my-profile", label: "My Profile", icon: <User /> },
-      { to: "/change-password", label: "Change Password", icon: <KeyRound /> }
+      { to: "/change-password", label: "Change Password", icon: <KeyRound /> },
+
     );
   }
   const { pendingConsultants } = usePendingConsultants();
@@ -45,29 +51,24 @@ export default function SidebarLayout() {
     navigate("/");
   };
 
-  // Update window width on resize
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-
- 
   const isMobile = windowWidth < 768;
   const isTablet = windowWidth >= 768 && windowWidth < 1024;
   const isDesktop = windowWidth >= 1024;
 
-  // Conditionally render sidebar only for authenticated users and not on "/", "/register"
   const showSidebar =
     isAuthenticated && !["/", "/register"].includes(location.pathname);
 
   return (
-    
+
     <div className="sidebar-layout">
       {showSidebar && (
         <>
-          {/* Hamburger for mobile/tablet */}
           {(isMobile || isTablet) && !mobileOpen && (
             <button
               className="hamburger-btn"
@@ -77,7 +78,6 @@ export default function SidebarLayout() {
             </button>
           )}
 
-          {/* Sidebar */}
           <aside
             className={`sidebar ${collapsed ? "collapsed" : ""} ${mobileOpen ? "open" : ""
               }`}
@@ -110,7 +110,6 @@ export default function SidebarLayout() {
               </div>
             </div>
 
-            {/* User Info */}
             <div className={`user-info ${collapsed && isDesktop ? "center" : ""}`}>
               {!collapsed || isMobile || isTablet ? (
                 <p>Welcome, {userName}</p>
@@ -119,7 +118,6 @@ export default function SidebarLayout() {
               )}
             </div>
 
-            {/* Navigation */}
             <nav className="sidebar-nav">
               {navItems.map(({ to, label, icon }) => (
                 <NavLink
