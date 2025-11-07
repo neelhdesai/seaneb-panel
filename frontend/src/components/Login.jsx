@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "react-toastify";
-import { useNavigate, Link } from "react-router"; // Corrected Link import
+import { useNavigate, Link } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import api from "../lib/api";
 import Logo from "../../public/seaneb-offers.png";
@@ -28,27 +28,46 @@ export default function LoginPage() {
 
     setLoading(true);
 
-    try {
-      const payload = { identifier: email.trim(), password };
-      const res = await api.post("/api/auth/login", payload);
+try {
+  const payload = { identifier: email.trim(), password };
+  const res = await api.post("/api/auth/login", payload);
+  console.log("🔍 Login Response:", res.data);
 
-      toast.success("Login successful");
+  const token = res.data?.token;
+  const user = res.data?.user;
 
-      // Store token, user, and role
-      sessionStorage.setItem("token", res.data.token);
-      sessionStorage.setItem("user", JSON.stringify(res.data.user));
-      sessionStorage.setItem("role", res.data.user.role);
+  if (!token || !user) {
+    toast.error("Invalid server response — token missing");
+    return;
+  }
 
-      // Redirect based on role
-      if (res.data.user.role === "admin") navigate("/user-business");
-      else if (res.data.user.role === "consultant") navigate("/business-register");
-      else navigate("/login");
-    } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.message || "Login failed");
-    } finally {
-      setLoading(false);
-    }
+  localStorage.setItem("token", token);
+  localStorage.setItem("user", JSON.stringify(user));
+  localStorage.setItem("role", user.role);
+
+  toast.success("✅ Login successful");
+
+  switch (user.role) {
+    case "admin":
+      navigate("/user-business");
+      break;
+    case "consultant":
+      navigate("/business-register");
+      break;
+    case "dataentry":
+      navigate("/register-user");
+      break;
+    default:
+      navigate("/login");
+      break;
+  }
+} catch (err) {
+  console.error("❌ Login Error:", err);
+  toast.error(err.response?.data?.message || "Login failed");
+} finally {
+  setLoading(false);
+}
+
   };
 
   return (
@@ -82,11 +101,10 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email or phone"
-                className={`w-full border rounded-md px-4 py-2 text-sm focus:outline-none focus:ring-2 ${
-                  errors.email
+                className={`w-full border rounded-md px-4 py-2 text-sm focus:outline-none focus:ring-2 ${errors.email
                     ? "border-red-500 focus:ring-red-400"
                     : "border-gray-300 focus:ring-blue-500"
-                }`}
+                  }`}
               />
               {errors.email && (
                 <p className="text-red-500 text-xs mt-1">{errors.email}</p>
@@ -104,11 +122,10 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
-                  className={`w-full border rounded-md px-4 py-2 pr-10 text-sm focus:outline-none focus:ring-2 ${
-                    errors.password
+                  className={`w-full border rounded-md px-4 py-2 pr-10 text-sm focus:outline-none focus:ring-2 ${errors.password
                       ? "border-red-500 focus:ring-red-400"
                       : "border-gray-300 focus:ring-blue-500"
-                  }`}
+                    }`}
                 />
                 <span
                   className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer text-gray-400 hover:text-gray-700"
