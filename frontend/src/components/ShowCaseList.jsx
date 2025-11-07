@@ -85,6 +85,20 @@ const BusinessShowcasePage = () => {
         }
     };
 
+    const getImageUrl = (url) => {
+        if (!url) return "https://via.placeholder.com/400x250?text=No+Image";
+
+        if (url.startsWith("/")) url = url.slice(1);
+        if (!url.startsWith("http")) {
+            url = `https://seaneb.blr1.cdn.digitaloceanspaces.com/${url}`;
+        }
+        if (!url.includes("-300x300")) {
+            url = url.replace(/(\.[a-zA-Z]+)$/, "-300x300$1");
+        }
+
+        return url;
+    };
+
     const handlePromote = async (showcase_u_id) => {
         if (!showcase_u_id || !selectedBusiness?.value) {
             setMessage("⚠️ Please select a business first.");
@@ -193,16 +207,19 @@ const BusinessShowcasePage = () => {
                                         />
                                     ) : (
                                         <img
-                                            src={`https://seaneb.blr1.cdn.digitaloceanspaces.com/${showcase.media_url
-                                                ? showcase.media_url.replace(/(\.[a-zA-Z]+)$/, "-300x300$1")
-                                                : ""
-                                                }`}
+                                            src={getImageUrl(showcase.media_url)}
                                             alt={showcase.description || "Showcase"}
                                             className="w-full h-64 object-cover rounded-lg"
                                             onError={(e) => {
                                                 console.error("❌ Image failed to load:", e.target.src);
-                                                e.target.src =
-                                                    "https://via.placeholder.com/400x250?text=Image+not+found";
+                                              
+                                                const original = e.target.src.replace("-300x300", "");
+                                                if (original !== e.target.src) {
+                                                    console.log("🔄 Trying original image:", original);
+                                                    e.target.src = original;
+                                                } else {
+                                                    e.target.src = "https://via.placeholder.com/400x250?text=Image+not+found";
+                                                }
                                             }}
                                         />
 
@@ -230,7 +247,7 @@ const BusinessShowcasePage = () => {
                                         >
                                             {promoting === showcase.u_id
                                                 ? "Promoting..."
-                                                : "🚀 Promote"}
+                                                : "Promote"}
                                         </button>
                                     </div>
                                 </div>
