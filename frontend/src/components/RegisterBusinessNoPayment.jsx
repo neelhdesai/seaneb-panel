@@ -80,7 +80,7 @@ const RegisterBusinessNoPayment = () => {
         const res = await axios.get("https://api.seaneb.com/api/mobile/business-category-list?limit=50");
         const list = res.data?.data?.data || [];
         const opts = list.map((cat) => ({
-          value: cat.u_id,
+          value: cat.category, // 👈 use readable category name as value
           label: cat.category,
         }));
         setCategories(opts);
@@ -544,16 +544,18 @@ const RegisterBusinessNoPayment = () => {
 
           <CreatableSelect
             options={categories}
-            value={categories.filter((c) => formData.business_category_ids.includes(c.label))}
+            value={categories.filter((c) =>
+              formData.business_category_ids.includes(c.value)
+            )}
             onChange={(selected) =>
               setFormData((p) => ({
                 ...p,
-                business_category_ids: selected?.map((s) => s.label) || [],
+                business_category_ids: selected ? selected.map((s) => s.value) : [],
               }))
             }
             onCreateOption={(inputValue) => {
-              const newOption = { value: inputValue.toLowerCase().replace(/\s+/g, "_"), label: inputValue };
-              setCategories((prev) => [...prev, newOption]); // add to dropdown
+              const newOption = { value: inputValue, label: inputValue };
+              setCategories((prev) => [...prev, newOption]);
               setFormData((p) => ({
                 ...p,
                 business_category_ids: [...p.business_category_ids, inputValue],
@@ -561,6 +563,7 @@ const RegisterBusinessNoPayment = () => {
             }}
             placeholder="Select or type Business Categories"
             isMulti
+            isClearable
           />
 
           {/* Contact & Address Info */}
