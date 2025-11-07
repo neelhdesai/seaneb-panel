@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import Select from "react-select";
-import api from "../lib/mobileApi";
+
 
 const AddShowcase = () => {
   const [businesses, setBusinesses] = useState([]);
@@ -167,7 +167,7 @@ const AddShowcase = () => {
       };
 
       const token = localStorage.getItem("token");
-      const res = await mobileApi.post(
+      const res = await axios.post(
         "https://api.seaneb.com/api/mobile/add-showcase",
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -201,10 +201,7 @@ const AddShowcase = () => {
         if (selectRef.current) selectRef.current.clearValue();
         if (fileInputRef.current) fileInputRef.current.value = "";
         console.log("📤 Token:", localStorage.getItem("token"));
-        api.interceptors.request.use((config) => {
-          console.log("📤 Request Headers:", config.headers);
-          return config;
-        });
+       
 
       } else {
         setMessage(`⚠️ ${res.data.message || "Unknown server response"}`);
