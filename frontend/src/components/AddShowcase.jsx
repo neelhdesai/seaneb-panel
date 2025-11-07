@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import Select from "react-select";
+import imageCompression from "browser-image-compression";
+
 
 
 const AddShowcase = () => {
@@ -61,73 +63,103 @@ const AddShowcase = () => {
       };
     });
 
-  // 🔹 Handle file input
-  const handleFileChange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+const handleFileChange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-    const type = file.type.startsWith("video") ? "video" : "image";
-    setFormData((prev) => ({ ...prev, mediaFile: file, type }));
-    setPreview(URL.createObjectURL(file));
+  const type = file.type.startsWith("video") ? "video" : "image";
+  setFormData((prev) => ({ ...prev, type }));
+  setPreview(URL.createObjectURL(file));
 
-    if (type === "video") {
-      const thumbBlob = await generateVideoThumbnail(file);
-      const baseName = file.name.replace(/\.[^/.]+$/, "");
-      const timestamp = Date.now();
-      const thumbFileName = `${timestamp}_${baseName}_thumb.png`;
+  if (type === "video") {
+    // 🎞️ Existing video thumbnail logic
+    const thumbBlob = await generateVideoThumbnail(file);
+    const baseName = file.name.replace(/\.[^/.]+$/, "");
+    const timestamp = Date.now();
+    const thumbFileName = `${timestamp}_${baseName}_thumb.png`;
+    const thumbFile = new File([thumbBlob], thumbFileName, { type: "image/png" });
+    setFormData((prev) => ({ ...prev, mediaFile: file, thumbnailFile: thumbFile }));
+    setThumbPreview(URL.createObjectURL(thumbFile));
+  } else {
+    try {
+      // 🧩 PNG Compression
+      const options = {
+        maxWidthOrHeight: 1080, // keep HD, resize only if too big
+        fileType: "image/png",
+        useWebWorker: true,
+      };
 
-      const thumbFile = new File([thumbBlob], thumbFileName, { type: "image/png" });
-      setFormData((prev) => ({ ...prev, thumbnailFile: thumbFile }));
-      setThumbPreview(URL.createObjectURL(thumbFile));
-    } else {
-      setThumbPreview(null);
-      setFormData((prev) => ({ ...prev, thumbnailFile: null }));
+      const compressedBlob = await imageCompression(file, options);
+      const compressedFile = new File(
+        [compressedBlob],
+        `${Date.now()}_${file.name.replace(/\.[^/.]+$/, "")}.png`,
+        { type: "image/png" }
+      );
+
+      console.log(
+        `Compressed from ${(file.size / 1024 / 1024).toFixed(2)}MB → ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`
+      );
+
+      setFormData((prev) => ({ ...prev, mediaFile: compressedFile }));
+      setThumbPreview(URL.createObjectURL(compressedFile));
+    } catch (err) {
+      console.error("Image compression failed:", err);
+      setFormData((prev) => ({ ...prev, mediaFile: file }));
+      setThumbPreview(URL.createObjectURL(file));
     }
-  };
+  }
+};
 
-  // 🔹 Upload file(s)
-  const uploadFile = async (file, thumbFile) => {
-    const token = localStorage.getItem("token");
 
-    const mediaForm = new FormData();
-    mediaForm.append("mediaFile", file);
-    mediaForm.append("business_u_id", formData.business_u_id);
+// 🔹 Upload file(s)
+const uploadFile = async (file, thumbFile) => {
+  const token = localStorage.getItem("token");
 
-    const mediaRes = await axios.post(
+  // 🧾 1️⃣ Upload main media file
+  const mediaForm = new FormData();
+  mediaForm.append("mediaFile", file);
+  mediaForm.append("business_u_id", formData.business_u_id);
+
+  const mediaRes = await axios.post(
+    "https://api.seaneb.com/api/mobile/upload-showcase-media",
+    mediaForm,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+
+  // ✅ Extract response data safely
+  const mediaData = mediaRes.data?.data;
+
+  if (!mediaRes.data.status || !mediaData?.media_url) {
+    throw new Error(mediaRes.data?.message || "Media upload failed");
+  }
+
+  let thumbnailUrl = "";
+
+  // 🧾 2️⃣ Upload video thumbnail if exists
+  if (thumbFile) {
+    const thumbForm = new FormData();
+    thumbForm.append("mediaFile", thumbFile);
+    thumbForm.append("business_u_id", formData.business_u_id);
+
+    const thumbRes = await axios.post(
       "https://api.seaneb.com/api/mobile/upload-showcase-media",
-      mediaForm,
+      thumbForm,
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
-    const mediaData = mediaRes.data?.data;
-    if (!mediaRes.data.status || !mediaData?.media_url) {
-      throw new Error(mediaData?.message || "Media upload failed");
+    const thumbData = thumbRes.data?.data;
+    if (thumbRes.data.status && thumbData?.media_url) {
+      thumbnailUrl = thumbData.media_url;
     }
+  }
 
-    let thumbnailUrl = "";
-
-    if (thumbFile) {
-      const thumbForm = new FormData();
-      thumbForm.append("mediaFile", thumbFile);
-      thumbForm.append("business_u_id", formData.business_u_id);
-
-      const thumbRes = await axios.post(
-        "https://api.seaneb.com/api/mobile/upload-showcase-media",
-        thumbForm,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      const thumbData = thumbRes.data?.data;
-      if (thumbRes.data.status && thumbData?.media_url) {
-        thumbnailUrl = thumbData.media_url;
-      }
-    }
-
-    return {
-      media_url: mediaData.media_url,
-      thumbnail: thumbnailUrl || mediaData.thumbnail || mediaData.media_url,
-    };
+  // ✅ 3️⃣ Return URLs for DB save
+  return {
+    media_url: mediaData.media_url,
+    thumbnail: thumbnailUrl || mediaData.thumbnail || mediaData.media_url,
   };
+};
+
 
   // 🔹 Hashtag handling
   const handleHashtagKeyDown = (e) => {
@@ -201,7 +233,7 @@ const AddShowcase = () => {
         if (selectRef.current) selectRef.current.clearValue();
         if (fileInputRef.current) fileInputRef.current.value = "";
         console.log("📤 Token:", localStorage.getItem("token"));
-       
+
 
       } else {
         setMessage(`⚠️ ${res.data.message || "Unknown server response"}`);
@@ -329,10 +361,10 @@ const AddShowcase = () => {
         {message && (
           <p
             className={`mt-5 text-center font-medium ${message.startsWith("✅")
-                ? "text-green-600"
-                : message.startsWith("⚠️")
-                  ? "text-yellow-600"
-                  : "text-red-600"
+              ? "text-green-600"
+              : message.startsWith("⚠️")
+                ? "text-yellow-600"
+                : "text-red-600"
               }`}
           >
             {message}
