@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import Select from "react-select";
-import api from "../lib/api";
-import mobileApi from "../lib/mobileApi";
+import api from "../lib/mobileApi";
 
 const AddShowcase = () => {
   const [businesses, setBusinesses] = useState([]);
