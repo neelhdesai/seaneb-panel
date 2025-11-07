@@ -167,7 +167,7 @@ const AddShowcase = () => {
       };
 
       const token = localStorage.getItem("token");
-      const res = await mobileApi.post(
+      const res = await axios.post(
         "https://api.seaneb.com/api/mobile/add-showcase",
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
