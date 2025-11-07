@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import Select from "react-select";
 import api from "../lib/api";
+import mobileApi from "../lib/mobileApi";
 
 const AddShowcase = () => {
   const [businesses, setBusinesses] = useState([]);
@@ -167,7 +168,7 @@ const AddShowcase = () => {
       };
 
       const token = localStorage.getItem("token");
-      const res = await axios.post(
+      const res = await mobileApi.post(
         "https://api.seaneb.com/api/mobile/add-showcase",
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
