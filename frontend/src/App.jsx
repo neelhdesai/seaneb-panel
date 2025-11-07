@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./components/Login";
 import AllBusinesses from "./components/AllBusinesses";
 import BusinessRegister from "./components/BusinessRegister";
@@ -8,6 +8,8 @@ import ChangePassword from "./components/ChangePassword";
 import ConsultantRegister from "./components/ConsultantRegister";
 import ConsultantApproval from "./components/ConsultantApproval";
 import MyBusinesses from "./components/MyBusinesses";
+import RegisterUser from "./components/RegisterUser";
+import RegisterBusinessNoPayment from "./components/RegisterBusinessNoPayment";
 
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -16,6 +18,8 @@ import ForgotPassword from "./components/ForgotPassword";
 import Hero from "./components/Hero";
 import CommissionPage from "./components/commissionData";
 import HowAppWorks from "./components/HowAppWorks";
+import AddShowcase from "./components/AddShowcase";
+import ShowCaseList from "./components/ShowCaseList";
 
 function App() {
   return (
@@ -40,6 +44,64 @@ function App() {
             </PrivateRoute>
           }
         />
+
+         <Route
+          path="/register-user"
+          element={
+            <PrivateRoute allowedRoles={["admin", "dataentry"]}>
+              <div className="flex min-h-screen bg-gray-100">
+                <Sidebar />
+                <main className="flex-1 p-4">
+                  <RegisterUser />
+                </main>
+              </div>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/showcase-add"
+          element={
+            <PrivateRoute allowedRoles={["admin", "dataentry"]}>
+              <div className="flex min-h-screen bg-gray-100">
+                <Sidebar />
+                <main className="flex-1 p-4">
+                  <AddShowcase />
+                </main>
+              </div>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/get-showcase"
+          element={
+            <PrivateRoute allowedRoles={["admin", "dataentry"]}>
+              <div className="flex min-h-screen bg-gray-100">
+                <Sidebar />
+                <main className="flex-1 p-4">
+                  <ShowCaseList />
+                </main>
+              </div>
+            </PrivateRoute>
+          }
+        />
+
+
+        
+         <Route
+          path="/register-business-no-payment"
+          element={
+            <PrivateRoute allowedRoles={["admin", "dataentry"]}>
+              <div className="flex min-h-screen bg-gray-100">
+                <Sidebar />
+                <main className="flex-1 p-4">
+                  <RegisterBusinessNoPayment />
+                </main>
+              </div>
+            </PrivateRoute>
+          }
+        />
+        
+        
 
         <Route
           path="/my-business"
