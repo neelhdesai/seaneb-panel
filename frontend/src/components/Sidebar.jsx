@@ -1,11 +1,15 @@
-import { NavLink, useLocation, useNavigate, Outlet } from "react-router";
-import { Menu, LogOut, Briefcase, KeyRound, X, UserRoundPlus, Handshake, User, IndianRupee, BookOpen } from "lucide-react";
+import { NavLink, useLocation, useNavigate, Outlet } from "react-router-dom";
+import {
+  Menu, LogOut, Briefcase, KeyRound, X, UserRoundPlus, Handshake, User, IndianRupee, BookOpen,
+  Building2,
+  PlusSquare,
+  ListChecks,
+} from "lucide-react";
 import { useState, useEffect } from "react";
 import "../SidebarLayout.css";
 import { usePendingConsultants } from "../context/PendingConsultantsContext";
 
 export default function SidebarLayout() {
-  // Hooks must always be called
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
@@ -13,10 +17,10 @@ export default function SidebarLayout() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const isAuthenticated = sessionStorage.getItem("token");
-  const user = JSON.parse(sessionStorage.getItem("user"));
+  const isAuthenticated = localStorage.getItem("token");
+  const user = JSON.parse(localStorage.getItem("user"));
   const userName = user?.name || "User";
-  const userRole = sessionStorage.getItem("role"); // "admin" or "consultant"
+  const userRole = localStorage.getItem("role");
 
 
   const navItems = [];
@@ -25,21 +29,32 @@ export default function SidebarLayout() {
     navItems.push(
       { to: "/user-business", label: "User Business", icon: <Briefcase /> },
       { to: "/new-consultant", label: "Consultants", icon: <UserRoundPlus /> },
-      { to: "/how-app-works", label: "How App Works", icon: <BookOpen  /> },
+      { to: "/how-app-works", label: "How App Works", icon: <BookOpen /> },
       { to: "/payout-structure", label: "Payout Structure", icon: <IndianRupee /> },
       { to: "/my-profile", label: "My Profile", icon: <User /> },
-      { to: "/change-password", label: "Change Password", icon: <KeyRound /> }
+      { to: "/change-password", label: "Change Password", icon: <KeyRound /> },
+      { to: "/register-user", label: "Register User", icon: <UserRoundPlus /> },
+      { to: "/register-business-no-payment", label: "Register Business", icon: <Building2 /> },
+      { to: "/showcase-add", label: "Add Showcase", icon: <PlusSquare /> },
+      { to: "/get-showcase", label: "Showcase List", icon: <ListChecks /> },
     );
   } else if (userRole === "consultant") {
     navItems.push(
       { to: "/business-register", label: "Business Register", icon: <Briefcase /> },
       { to: "/my-business", label: "My Business", icon: <Handshake /> },
-      { to: "/how-app-works", label: "How App Works", icon: <BookOpen  /> }
-,
+      { to: "/how-app-works", label: "How App Works", icon: <BookOpen /> }
+      ,
       { to: "/payout-structure", label: "Payout Structure", icon: <IndianRupee /> },
       { to: "/my-profile", label: "My Profile", icon: <User /> },
       { to: "/change-password", label: "Change Password", icon: <KeyRound /> },
 
+    );
+  } else if (userRole === "dataentry") {
+    navItems.push(
+      { to: "/register-user", label: "Register User", icon: <UserRoundPlus /> },
+      { to: "/register-business-no-payment", label: "Register Business", icon: <Building2 /> },
+      { to: "/showcase-add", label: "Add Showcase", icon: <PlusSquare /> },
+      { to: "/get-showcase", label: "Showcase List", icon: <ListChecks /> },
     );
   }
   const { pendingConsultants } = usePendingConsultants();
@@ -47,7 +62,7 @@ export default function SidebarLayout() {
 
   const handleLogout = () => {
     if (!window.confirm("Are you sure you want to logout?")) return;
-    ["token", "user", "role"].forEach((k) => sessionStorage.removeItem(k));
+    ["token", "user", "role"].forEach((k) => localStorage.removeItem(k));
     navigate("/");
   };
 
@@ -130,26 +145,22 @@ export default function SidebarLayout() {
                   }
                   onClick={() => (isMobile || isTablet) && setMobileOpen(false)}
                 >
-                  {/* Icon */}
                   <div className="flex items-center space-x-3">
                     {icon}
                     {(!collapsed || isMobile || isTablet) && <span className="font-medium">{label}</span>}
                   </div>
 
-                  {/* Red badge for pending consultants */}
                   {to === "/new-consultant" && pendingConsultants > 0 && !collapsed && (
                     <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                       {pendingConsultants}
                     </span>
                   )}
 
-                  {/* Tooltip when collapsed */}
                   {collapsed && isDesktop && <span className="tooltip">{label}</span>}
                 </NavLink>
               ))}
 
 
-              {/* Logout */}
               <button
                 onClick={() => {
                   handleLogout();
@@ -164,7 +175,6 @@ export default function SidebarLayout() {
             </nav>
           </aside>
 
-          {/* Overlay for mobile/tablet */}
           {mobileOpen && (isMobile || isTablet) && (
             <div
               onClick={() => setMobileOpen(false)}
@@ -174,7 +184,6 @@ export default function SidebarLayout() {
         </>
       )}
 
-      {/* Main Content */}
       <main className={`main-content ${collapsed && isDesktop ? "collapsed" : ""}`}>
         <Outlet />
       </main>
