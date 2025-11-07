@@ -52,6 +52,20 @@ const RegisterBusinessNoPayment = () => {
     }
   };
 
+  const generateAvatarUrl = (name) => {
+    if (!name || name.trim() === "") {
+      return "https://ui-avatars.com/api/?name=NA&background=0D8ABC&color=fff&size=200";
+    }
+
+    const words = name.trim().split(" ");
+    const initials = words
+      .slice(0, 2)
+      .map((w) => w[0].toUpperCase())
+      .join("");
+
+    return `https://ui-avatars.com/api/?name=${initials}&background=0D8ABC&color=fff&size=200`;
+  };
+
   useEffect(() => {
     initGoogleServices();
   }, []);
@@ -412,89 +426,90 @@ const RegisterBusinessNoPayment = () => {
   };
 
   // Submit form
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage("");
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setMessage("");
 
-    try {
-      // ✅ clone formData first
-      let payload = {
-        ...formData,
-        business_category: (formData.business_category_ids || []).join(", "),
-      };
+  try {
+    // ✅ clone formData first
+    let payload = {
+      ...formData,
+      business_category: (formData.business_category_ids || []).join(", "),
+      icon: generateAvatarUrl(formData.business_name), 
+    };
 
-      // ✅ Add fallback if google_map_id missing
-      if (!payload.google_map_id || !payload.google_map_id.trim()) {
-        if (formData.area || formData.city) {
-          payload.google_map_id = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-            formData.area + " " + formData.city
-          )}`;
-        } else if (formData.latitude && formData.longitude) {
-          payload.google_map_id = `https://www.google.com/maps/search/?api=1&query=${formData.latitude},${formData.longitude}`;
-        } else {
-          payload.google_map_id = null;
-        }
-      }
-
-      // ✅ Now log and confirm before sending
-      console.log("🚀 FINAL PAYLOAD SENT:", payload.google_map_id);
-
-      delete payload.business_category_ids;
-      delete payload.allowEditId;
-
-      const res = await axios.post(
-        "https://api.seaneb.com/api/mobile/register-business-no-payment",
-        payload
-      );
-
-      setMessage(`✅ ${res.data.message || "Business registered successfully!"}`);
-      setFormData({
-        business_name: "",
-        email: "",
-        pan_number: "",
-        gst_number: "",
-        seaneb_id: "",
-        allowEditId: false,
-        address: "",
-        contact_no: "",
-        website: "",
-        latitude: "",
-        longitude: "",
-        area: "",
-        city: "",
-        state: "",
-        country: "",
-        country_short: "",
-        zip_code: "",
-        google_map_id: "",
-        u_id: "",
-        business_category_ids: [],
-      });
-      setFromGoogle(false);
-    } catch (err) {
-      console.error("❌ Registration error:", err.response?.data || err.message);
-      const serverMsg = err.response?.data?.message || "";
-
-      if (serverMsg.includes("SeaNeB ID already exists")) {
-        setMessage("⚠️ This SeaNeB ID is already registered. Please pick a different one.");
-      } else if (serverMsg.includes("GST number already exists")) {
-        setMessage("⚠️ This GST number is already registered with another business.");
-      } else if (serverMsg.includes("PAN number already exists")) {
-        setMessage("⚠️ This PAN number is already registered with another business.");
-      } else if (serverMsg.includes("email already exists")) {
-        setMessage("⚠️ This email is already registered.");
-      } else if (serverMsg.includes("mobile number already exists")) {
-        setMessage("⚠️ This mobile number is already registered.");
-      } else if (serverMsg.includes("already linked with another business")) {
-        setMessage("⚠️ This user is already linked with another business. Please select a different user.");
+    // ✅ Add fallback if google_map_id missing
+    if (!payload.google_map_id || !payload.google_map_id.trim()) {
+      if (formData.area || formData.city) {
+        payload.google_map_id = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+          formData.area + " " + formData.city
+        )}`;
+      } else if (formData.latitude && formData.longitude) {
+        payload.google_map_id = `https://www.google.com/maps/search/?api=1&query=${formData.latitude},${formData.longitude}`;
       } else {
-        setMessage("❌ Registration failed. Please try again later.");
+        payload.google_map_id = null;
       }
-    } finally {
-      setLoading(false);
     }
-  };
+
+    // ✅ Now log and confirm before sending
+    console.log("🚀 FINAL PAYLOAD SENT:", payload);
+
+    delete payload.business_category_ids;
+    delete payload.allowEditId;
+
+    const res = await axios.post(
+      "https://api.seaneb.com/api/mobile/register-business-no-payment",
+      payload
+    );
+
+    setMessage(`✅ ${res.data.message || "Business registered successfully!"}`);
+    setFormData({
+      business_name: "",
+      email: "",
+      pan_number: "",
+      gst_number: "",
+      seaneb_id: "",
+      allowEditId: false,
+      address: "",
+      contact_no: "",
+      website: "",
+      latitude: "",
+      longitude: "",
+      area: "",
+      city: "",
+      state: "",
+      country: "",
+      country_short: "",
+      zip_code: "",
+      google_map_id: "",
+      u_id: "",
+      business_category_ids: [],
+    });
+    setFromGoogle(false);
+  } catch (err) {
+    console.error("❌ Registration error:", err.response?.data || err.message);
+    const serverMsg = err.response?.data?.message || "";
+
+    if (serverMsg.includes("SeaNeB ID already exists")) {
+      setMessage("⚠️ This SeaNeB ID is already registered. Please pick a different one.");
+    } else if (serverMsg.includes("GST number already exists")) {
+      setMessage("⚠️ This GST number is already registered with another business.");
+    } else if (serverMsg.includes("PAN number already exists")) {
+      setMessage("⚠️ This PAN number is already registered with another business.");
+    } else if (serverMsg.includes("email already exists")) {
+      setMessage("⚠️ This email is already registered.");
+    } else if (serverMsg.includes("mobile number already exists")) {
+      setMessage("⚠️ This mobile number is already registered.");
+    } else if (serverMsg.includes("already linked with another business")) {
+      setMessage("⚠️ This user is already linked with another business. Please select a different user.");
+    } else {
+      setMessage("❌ Registration failed. Please try again later.");
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-200 px-4 py-8">
@@ -502,6 +517,16 @@ const RegisterBusinessNoPayment = () => {
         <h2 className="text-3xl font-semibold text-center text-blue-700 mb-6">
           🏢 Register Business (No Payment)
         </h2>
+
+        <div className="flex flex-col items-center mb-4">
+          <img
+            src={generateAvatarUrl(formData.business_name)}
+            alt="Business Avatar"
+            className="w-24 h-24 rounded-full border shadow-md"
+          />
+          <p className="text-sm text-gray-500 mt-2">Auto-generated avatar</p>
+        </div>
+
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Google Business Search */}
