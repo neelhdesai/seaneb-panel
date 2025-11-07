@@ -1,8 +1,8 @@
-import { Navigate } from "react-router";
+import { Navigate } from "react-router-dom";
 
 export default function PrivateRoute({ children, allowedRoles }) {
-  const isAuthenticated = sessionStorage.getItem("token");
-  const userRole = sessionStorage.getItem("role"); // "admin" or "consultant"
+  const isAuthenticated = localStorage.getItem("token");
+  const userRole = localStorage.getItem("role"); // "admin" or "consultant"
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
