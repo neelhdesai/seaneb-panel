@@ -396,7 +396,6 @@ const searchArea = async (query) => {
 
   console.log("🔍 Searching area:", query);
 
-  // Bias to India
   const indiaBounds = new window.google.maps.LatLngBounds(
     new window.google.maps.LatLng(6.5546, 68.1114),
     new window.google.maps.LatLng(37.0970, 97.3956)
@@ -405,7 +404,7 @@ const searchArea = async (query) => {
   areaServiceRef.current.getPlacePredictions(
     {
       input: query,
-      types: ["(regions)"], // ✅ restrict to regions only (no buildings)
+      types: ["geocode"], // ✅ allow geocodable areas + routes
       componentRestrictions: { country: "in" },
       bounds: indiaBounds,
     },
@@ -416,10 +415,14 @@ const searchArea = async (query) => {
         status === window.google.maps.places.PlacesServiceStatus.OK &&
         predictions?.length
       ) {
-        // ✅ Filter out unwanted place types (buildings, establishments, routes)
+        // ✅ Filter out only buildings, keep routes + areas
         const areaPredictions = predictions.filter((p) => {
           const t = (p.types || []).join(",").toLowerCase();
-          return !t.includes("establishment") && !t.includes("premise") && !t.includes("route");
+          return !(
+            t.includes("establishment") ||
+            t.includes("premise") ||
+            t.includes("point_of_interest")
+          );
         });
 
         const formatted = areaPredictions.map((p) => {
@@ -428,8 +431,8 @@ const searchArea = async (query) => {
           const cleanValue = mainText.trim();
 
           return {
-            value: cleanValue, // ✅ only "Ahmedabad"
-            label: `${mainText}${secondaryText ? ", " + secondaryText : ""}`, // ✅ "Ahmedabad, Gujarat, India"
+            value: cleanValue, // ✅ "Juna Dumaral Road"
+            label: `${mainText}${secondaryText ? ", " + secondaryText : ""}`, // ✅ "Juna Dumaral Road, Nadiad, Gujarat, India"
             full_description: p.description,
             place_id: p.place_id,
           };
@@ -439,7 +442,6 @@ const searchArea = async (query) => {
       } else {
         console.warn("⚠️ No autocomplete predictions. Trying Geocode fallback...");
 
-        // 🧭 Fallback to Geocode API
         const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
         try {
           const resp = await fetch(
@@ -453,16 +455,19 @@ const searchArea = async (query) => {
           if (data.status === "OK" && data.results.length > 0) {
             const options = data.results
               .filter((r) => {
-                // ✅ skip if type includes building or premise
                 const types = (r.types || []).join(",");
-                return !types.includes("establishment") && !types.includes("premise");
+                return !(
+                  types.includes("establishment") ||
+                  types.includes("premise") ||
+                  types.includes("point_of_interest")
+                );
               })
               .map((r) => {
                 const parts = r.formatted_address.split(",");
                 const main = parts[0]?.trim() || r.formatted_address;
                 return {
-                  value: main,
-                  label: r.formatted_address,
+                  value: main, // ✅ "Juna Dumaral Road"
+                  label: r.formatted_address, // ✅ "Juna Dumaral Road, Nadiad, Gujarat, India"
                   place_id: r.place_id,
                 };
               });
