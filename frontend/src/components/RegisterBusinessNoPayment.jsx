@@ -15,6 +15,7 @@ const RegisterBusinessNoPayment = () => {
   const [fromGoogle, setFromGoogle] = useState(false);
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
+
   const serviceRef = useRef(null);
   const areaServiceRef = useRef(null);
 
@@ -111,63 +112,76 @@ const RegisterBusinessNoPayment = () => {
     fetchCategories();
   }, []);
 
-  const extractAddressComponents = (components = []) => {
-    const find = (types) => {
-      for (const t of types) {
-        const c = components.find((comp) => comp.types.includes(t));
-        if (c) return c.long_name.toLowerCase(); // ✅ lowercase
-      }
-      return "";
-    };
-
-    const findShort = (types) => {
-      for (const t of types) {
-        const c = components.find((comp) => comp.types.includes(t));
-        if (c) return c.short_name.toLowerCase(); // ✅ lowercase
-      }
-      return "";
-    };
-
-    const route = find(["route"]);
-    const sublocality2 = find(["sublocality_level_2"]);
-    const sublocality1 = find(["sublocality_level_1"]);
-    const neighborhood = find(["neighborhood"]);
-    const locality = find(["locality"]);
-    const taluka = find(["administrative_area_level_3"]);
-    const district = find(["administrative_area_level_2"]);
-    const state = find(["administrative_area_level_1"]);
-    const country = find(["country"]);
-    const country_short = findShort(["country"]);
-    const zip_code = find(["postal_code"]);
-
-    let area =
-      sublocality2 || sublocality1 || neighborhood || route || locality;
-
-    let city = locality;
-    if (!city || (area && city && city.toLowerCase() === area.toLowerCase())) {
-      if (taluka && taluka.toLowerCase() !== area?.toLowerCase()) {
-        city = taluka;
-      } else if (district && district.toLowerCase() !== area?.toLowerCase()) {
-        city = district;
-      }
+const extractAddressComponents = (components = []) => {
+  const find = (types, excludePremise = false) => {
+    for (const t of types) {
+      const c = components.find(
+        (comp) =>
+          comp.types.includes(t) &&
+          (!excludePremise || !comp.types.includes("premise")) &&
+          !comp.types.includes("establishment")
+      );
+      if (c) return c.long_name.toLowerCase();
     }
-
-    if (city && area && area.toLowerCase().includes(city.toLowerCase())) {
-      area = area
-        .replace(new RegExp(city, "i"), "")
-        .trim()
-        .replace(/,\s*$/, "");
-    }
-
-    return {
-      area: area?.toLowerCase() || "",
-      city: city?.toLowerCase() || "",
-      state: state?.toLowerCase() || "",
-      country: country?.toLowerCase() || "",
-      country_short: country_short?.toLowerCase() || "",
-      zip_code: zip_code?.toLowerCase() || "",
-    };
+    return "";
   };
+
+  const findShort = (types) => {
+    for (const t of types) {
+      const c = components.find((comp) => comp.types.includes(t));
+      if (c) return c.short_name.toLowerCase();
+    }
+    return "";
+  };
+
+  // Extract key address components (all in lowercase)
+  const sublocality2 = find(["sublocality_level_2"], true);
+  const sublocality1 = find(["sublocality_level_1"], true);
+  const neighborhood = find(["neighborhood"], true);
+  const route = find(["route"], true);
+  const locality = find(["locality"], true);
+  const taluka = find(["administrative_area_level_3"]);
+  const district = find(["administrative_area_level_2"]);
+  const state = find(["administrative_area_level_1"]);
+  const country = find(["country"]);
+  const country_short = findShort(["country"]);
+  const zip_code = find(["postal_code"]);
+
+  // 🚫 Ignore building/premise names — we want *area/locality*
+  let area =
+    sublocality2 ||
+    sublocality1 ||
+    neighborhood ||
+    route ||
+    locality ||
+    taluka;
+
+  // 🏙️ Determine "city"
+  let city = locality;
+  if (!city || (area && city && city === area)) {
+    if (taluka && taluka !== area) {
+      city = taluka;
+    } else if (district && district !== area) {
+      city = district;
+    }
+  }
+
+  // 🧹 Remove overlaps (e.g., "Juna Dumaral Road, Juna Dumaral Road")
+  if (city && area && area.includes(city)) {
+    area = area.replace(new RegExp(city, "i"), "").trim().replace(/,\s*$/, "");
+  }
+
+  // ✅ Ensure all in lowercase and clean
+  return {
+    area: (area || "").toLowerCase().trim(),
+    city: (city || "").toLowerCase().trim(),
+    state: (state || "").toLowerCase().trim(),
+    country: (country || "").toLowerCase().trim(),
+    country_short: (country_short || "").toLowerCase().trim(),
+    zip_code: (zip_code || "").toLowerCase().trim(),
+  };
+};
+
 
   // Generate SeaNeB ID from business name + area (safe/fallback logic)
   const generateSeanebId = (businessName, area) => {
@@ -178,105 +192,105 @@ const RegisterBusinessNoPayment = () => {
   };
 
   // Search Google Places (business)
-  const searchGoogleBusiness = async (query) => {
-    if (!query || query.length < 2) {
-      setGmbOptions([]);
+const searchGoogleBusiness = async (query) => {
+  if (!query || query.length < 2) {
+    setGmbOptions([]);
+    return;
+  }
+
+  initGoogleServices();
+  if (!serviceRef.current) return;
+
+  setLoadingGMB(true);
+
+  const formattedQuery = query
+    .trim()
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+/g, ", ");
+
+  let locationBias = new window.google.maps.LatLng(22.5645, 72.9289); // Anand default
+
+  // try to get user location for better accuracy
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        locationBias = new window.google.maps.LatLng(
+          pos.coords.latitude,
+          pos.coords.longitude
+        );
+      },
+      () => {
+        // ignore geolocation failure
+      }
+    );
+  }
+
+  const getPredictions = (input) =>
+    new Promise((resolve) => {
+      serviceRef.current.getPlacePredictions(
+        {
+          input,
+          types: ["establishment"],
+          componentRestrictions: { country: "in" },
+          locationBias: { center: locationBias, radius: 50000 },
+        },
+        (predictions, status) => {
+          if (
+            status === window.google.maps.places.PlacesServiceStatus.OK &&
+            predictions?.length
+          ) {
+            resolve(predictions);
+          } else {
+            resolve([]);
+          }
+        }
+      );
+    });
+
+  try {
+    const predictions = await getPredictions(formattedQuery);
+
+    // ✅ CASE 1: Predictions found
+    if (predictions.length > 0) {
+      setGmbOptions(
+        predictions.map((p) => ({
+          value: p.description,
+          label: p.description,
+          place_id: p.place_id,
+        }))
+      );
+      setLoadingGMB(false);
       return;
     }
 
-    initGoogleServices();
-    if (!serviceRef.current) return;
+    // ✅ CASE 2: Fallback to geocode API (no process.env)
+    const resp = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+        query
+      )}&region=in&key=${apiKey}`
+    );
 
-    setLoadingGMB(true);
+    const data = await resp.json();
 
-    const formattedQuery = query
-      .trim()
-      .replace(/\s{2,}/g, " ")
-      .replace(/\s+/g, ", ");
-
-    let locationBias = new window.google.maps.LatLng(22.5645, 72.9289); // Anand default
-
-    // try to get user location for better accuracy
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          locationBias = new window.google.maps.LatLng(
-            pos.coords.latitude,
-            pos.coords.longitude
-          );
-        },
-        () => {
-          // ignore geolocation failure
-        }
+    if (data.status === "OK" && data.results.length) {
+      setGmbOptions(
+        data.results.map((r) => ({
+          value: r.formatted_address,
+          label: r.formatted_address,
+          place_id: r.place_id,
+        }))
       );
-    }
-
-    const getPredictions = (input) =>
-      new Promise((resolve) => {
-        serviceRef.current.getPlacePredictions(
-          {
-            input,
-            types: ["establishment"],
-            componentRestrictions: { country: "in" },
-            locationBias: { center: locationBias, radius: 50000 },
-          },
-          (predictions, status) => {
-            if (
-              status === window.google.maps.places.PlacesServiceStatus.OK &&
-              predictions?.length
-            ) {
-              resolve(predictions);
-            } else {
-              resolve([]);
-            }
-          }
-        );
-      });
-
-    try {
-      const predictions = await getPredictions(formattedQuery);
-
-      // ✅ CASE 1: Predictions found
-      if (predictions.length > 0) {
-        setGmbOptions(
-          predictions.map((p) => ({
-            value: p.description,
-            label: p.description,
-            place_id: p.place_id,
-          }))
-        );
-        setLoadingGMB(false);
-        return;
-      }
-
-      // ✅ CASE 2: Fallback to geocode API (no process.env)
-      const resp = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
-          query
-        )}&region=in&key=${apiKey}`
-      );
-
-      const data = await resp.json();
-
-      if (data.status === "OK" && data.results.length) {
-        setGmbOptions(
-          data.results.map((r) => ({
-            value: r.formatted_address,
-            label: r.formatted_address,
-            place_id: r.place_id,
-          }))
-        );
-      } else {
-        // ✅ CASE 3: Fallback — typed query only
-        setGmbOptions([{ value: query, label: query }]);
-      }
-    } catch (err) {
-      console.error("❌ searchGoogleBusiness error:", err);
+    } else {
+      // ✅ CASE 3: Fallback — typed query only
       setGmbOptions([{ value: query, label: query }]);
-    } finally {
-      setLoadingGMB(false);
     }
-  };
+  } catch (err) {
+    console.error("❌ searchGoogleBusiness error:", err);
+    setGmbOptions([{ value: query, label: query }]);
+  } finally {
+    setLoadingGMB(false);
+  }
+};
 
   // When user selects a Google Business option -> get details & populate form
   const handleGMBSelect = (selected) => {
@@ -392,88 +406,122 @@ const RegisterBusinessNoPayment = () => {
     );
   };
 
-  const searchArea = async (query) => {
-    if (!query || query.length < 2) return setAreaOptions([]);
-    initGoogleServices();
-    if (!areaServiceRef.current) return;
+const searchArea = async (query) => {
+  if (!query || query.length < 2) return setAreaOptions([]);
+  initGoogleServices();
+  if (!areaServiceRef.current) return;
 
-    console.log("🔍 Searching area:", query);
+  console.log("🔍 Searching area:", query);
 
-    // Bias to India
-    const indiaBounds = new window.google.maps.LatLngBounds(
-      new window.google.maps.LatLng(6.5546, 68.1114),
-      new window.google.maps.LatLng(37.097, 97.3956)
-    );
+  const indiaBounds = new window.google.maps.LatLngBounds(
+    new window.google.maps.LatLng(6.5546, 68.1114), // SW India
+    new window.google.maps.LatLng(37.0970, 97.3956)  // NE India
+  );
 
-    areaServiceRef.current.getPlacePredictions(
-      {
-        input: query,
-        componentRestrictions: { country: "in" },
-        bounds: indiaBounds,
-      },
-      async (predictions, status) => {
-        console.log("📍 Autocomplete status:", status, predictions);
+  // 🚫 Block these words (common in building/business names)
+  const bannedWords = [
+    "apartment", "complex", "tower", "society", "building",
+    "bungalow", "residency", "flat", "chsl", "mall", "office",
+    "center", "centre", "market", "estate", "company", "institute",
+    "school", "college", "clinic", "hospital", "mandir", "temple",
+    "trust", "industries", "factory", "agency", "consultancy", "shop"
+  ];
 
-        if (
-          status === window.google.maps.places.PlacesServiceStatus.OK &&
-          predictions?.length
-        ) {
-          const formatted = predictions.map((p) => {
-            // Extract clean name from structured_formatting if available
-            const mainText =
-              p.structured_formatting?.main_text || p.description;
-            const secondaryText = p.structured_formatting?.secondary_text || "";
-            const cleanValue = mainText.trim();
+  areaServiceRef.current.getPlacePredictions(
+    {
+      input: query,
+      componentRestrictions: { country: "in" },
+      bounds: indiaBounds,
+      types: ["(regions)"], // ✅ focus only on area-level regions
+    },
+    async (predictions, status) => {
+      console.log("📍 Autocomplete status:", status, predictions);
 
-            return {
-              value: cleanValue, // ✅ only "Ahmedabad"
-              label: `${mainText}${secondaryText ? ", " + secondaryText : ""}`, // ✅ "Ahmedabad, Gujarat, India"
-              full_description: p.description,
-              place_id: p.place_id,
-            };
-          });
-
-          setAreaOptions(formatted);
-        } else {
-          console.warn(
-            "⚠️ No autocomplete predictions. Trying Geocode fallback..."
+      if (
+        status === window.google.maps.places.PlacesServiceStatus.OK &&
+        predictions?.length
+      ) {
+        // ✅ Step 1: filter out business/premise-like results
+        const filtered = predictions.filter((p) => {
+          const text = p.description.toLowerCase();
+          // Remove anything with banned keywords OR too short (e.g., just "sea")
+          return (
+            !bannedWords.some((word) => text.includes(word)) &&
+            text.length > 3
           );
+        });
 
-          // 🧭 Fallback to Geocode API
-          const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-          try {
-            const resp = await fetch(
-              `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
-                query
-              )}&region=in&key=${apiKey}`
-            );
-            const data = await resp.json();
-            console.log("🗺️ Fallback geocode:", data);
+        // ✅ Step 2: build lowercase labels
+        const formatted = filtered.map((p) => {
+          const mainText =
+            p.structured_formatting?.main_text?.toLowerCase() ||
+            p.description.toLowerCase();
+          const secondaryText =
+            p.structured_formatting?.secondary_text?.toLowerCase() || "";
+          const label = secondaryText
+            ? `${mainText}, ${secondaryText}`
+            : mainText;
+          return {
+            value: mainText.trim(),
+            label,
+            full_description: p.description,
+            place_id: p.place_id,
+          };
+        });
 
-            if (data.status === "OK" && data.results.length > 0) {
-              const options = data.results.map((r) => {
-                const parts = r.formatted_address.split(",");
-                const main = parts[0]?.trim() || r.formatted_address;
-                return {
-                  value: main, // ✅ "Ahmedabad"
-                  label: r.formatted_address, // ✅ "Ahmedabad, Gujarat, India"
-                  place_id: r.place_id,
-                };
-              });
-              setAreaOptions(options);
-            } else {
-              console.warn("❌ Fallback geocode also returned nothing.");
-              setAreaOptions([]);
-            }
-          } catch (err) {
-            console.error("❌ Geocode fallback error:", err);
+        // ✅ Step 3: remove duplicate area names (Google sometimes repeats)
+        const unique = Array.from(
+          new Map(formatted.map((i) => [i.label, i])).values()
+        );
+
+        setAreaOptions(unique);
+      } else {
+        console.warn("⚠️ No autocomplete predictions. Trying Geocode fallback...");
+
+        // 🧭 Fallback: Geocode API
+        try {
+          const resp = await fetch(
+            `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+              query
+            )}&region=in&key=${apiKey}`
+          );
+          const data = await resp.json();
+          console.log("🗺️ Fallback geocode:", data);
+
+          if (data.status === "OK" && data.results.length > 0) {
+            const filtered = data.results.filter((r) => {
+              const text = r.formatted_address.toLowerCase();
+              return !bannedWords.some((word) => text.includes(word));
+            });
+
+            const options = filtered.map((r) => {
+              const main = r.formatted_address.toLowerCase().split(",")[0];
+              return {
+                value: main.trim(),
+                label: r.formatted_address.toLowerCase(),
+                place_id: r.place_id,
+              };
+            });
+
+            setAreaOptions(options);
+          } else {
+            console.warn("❌ Fallback geocode also returned nothing.");
             setAreaOptions([]);
           }
+        } catch (err) {
+          console.error("❌ Geocode fallback error:", err);
+          setAreaOptions([]);
         }
       }
-    );
-  };
+    }
+  );
+};
 
+
+
+
+
+  // When area is selected from dropdown: fill address parts and update seaneb id
   const handleAreaSelect = (selected) => {
     if (!selected) {
       setFormData((p) => ({
@@ -509,18 +557,21 @@ const RegisterBusinessNoPayment = () => {
             addr.area || addr.city
           );
 
+          // ✅ Always build a valid Maps link
           const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
             selected.value
           )}&query_place_id=${selected.place_id}`;
 
+          console.log("✅ Final Google Map URL:", mapUrl);
+
           setFormData((prev) => ({
             ...prev,
-            area: (addr.area || selected.value)?.toLowerCase() || "",
-            city: addr.city?.toLowerCase() || "",
-            state: addr.state?.toLowerCase() || "",
-            country: addr.country?.toLowerCase() || "",
-            country_short: addr.country_short?.toLowerCase() || "",
-            zip_code: addr.zip_code?.toLowerCase() || "",
+            area: addr.area || selected.value,
+            city: addr.city,
+            state: addr.state,
+            country: addr.country,
+            country_short: addr.country_short,
+            zip_code: addr.zip_code,
             latitude: lat,
             longitude: lng,
             google_map_id: mapUrl,
