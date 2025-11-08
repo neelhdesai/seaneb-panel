@@ -395,17 +395,15 @@ const searchArea = async (query) => {
 
   console.log("🔍 Searching area:", query);
 
-  // Set up a region bias around India
+  // Bias to India
   const indiaBounds = new window.google.maps.LatLngBounds(
-    new window.google.maps.LatLng(6.5546, 68.1114),   // South-West
-    new window.google.maps.LatLng(37.0970, 97.3956)   // North-East
+    new window.google.maps.LatLng(6.5546, 68.1114),
+    new window.google.maps.LatLng(37.0970, 97.3956)
   );
 
-  // 🔧 Step 1: Try normal autocomplete predictions
   areaServiceRef.current.getPlacePredictions(
     {
       input: query,
-      // ❌ no types here — let Google decide (regions, sublocalities, roads)
       componentRestrictions: { country: "in" },
       bounds: indiaBounds,
     },
@@ -416,17 +414,26 @@ const searchArea = async (query) => {
         status === window.google.maps.places.PlacesServiceStatus.OK &&
         predictions?.length
       ) {
-        const formatted = predictions.map((p) => ({
-          value: p.description,
-          label: p.description,
-          place_id: p.place_id,
-        }));
+        const formatted = predictions.map((p) => {
+          // Extract clean name from structured_formatting if available
+          const mainText = p.structured_formatting?.main_text || p.description;
+          const secondaryText = p.structured_formatting?.secondary_text || "";
+          const cleanValue = mainText.trim();
+
+          return {
+            value: cleanValue, // ✅ only "Ahmedabad"
+            label: `${mainText}${secondaryText ? ", " + secondaryText : ""}`, // ✅ "Ahmedabad, Gujarat, India"
+            full_description: p.description,
+            place_id: p.place_id,
+          };
+        });
+
         setAreaOptions(formatted);
       } else {
         console.warn("⚠️ No autocomplete predictions. Trying Geocode fallback...");
 
-        // Step 2: Fallback to Geocode API
-        const apiKey = "AIzaSyCGmynZkLMmuiI7fMh_qcwHdqx3LHet9Ik"; // your live key
+        // 🧭 Fallback to Geocode API
+        const apiKey = "AIzaSyCGmynZkLMmuiI7fMh_qcwHdqx3LHet9Ik";
         try {
           const resp = await fetch(
             `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
@@ -437,11 +444,15 @@ const searchArea = async (query) => {
           console.log("🗺️ Fallback geocode:", data);
 
           if (data.status === "OK" && data.results.length > 0) {
-            const options = data.results.map((r) => ({
-              value: r.formatted_address,
-              label: r.formatted_address,
-              place_id: r.place_id,
-            }));
+            const options = data.results.map((r) => {
+              const parts = r.formatted_address.split(",");
+              const main = parts[0]?.trim() || r.formatted_address;
+              return {
+                value: main, // ✅ "Ahmedabad"
+                label: r.formatted_address, // ✅ "Ahmedabad, Gujarat, India"
+                place_id: r.place_id,
+              };
+            });
             setAreaOptions(options);
           } else {
             console.warn("❌ Fallback geocode also returned nothing.");
