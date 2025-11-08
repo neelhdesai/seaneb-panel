@@ -14,10 +14,8 @@ const RegisterBusinessNoPayment = () => {
   const [message, setMessage] = useState("");
   const [fromGoogle, setFromGoogle] = useState(false);
 
-
   const serviceRef = useRef(null);
   const areaServiceRef = useRef(null);
-
 
   const [formData, setFormData] = useState({
     business_name: "",
@@ -48,7 +46,8 @@ const RegisterBusinessNoPayment = () => {
       serviceRef.current = new window.google.maps.places.AutocompleteService();
     }
     if (window.google && !areaServiceRef.current) {
-      areaServiceRef.current = new window.google.maps.places.AutocompleteService();
+      areaServiceRef.current =
+        new window.google.maps.places.AutocompleteService();
     }
   };
 
@@ -74,10 +73,14 @@ const RegisterBusinessNoPayment = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await axios.get("https://api.seaneb.com/api/mobile/get-users-for-business");
+        const res = await axios.get(
+          "https://api.seaneb.com/api/mobile/get-users-for-business"
+        );
         const options = (res.data?.data || []).map((u) => ({
           value: u.u_id,
-          label: `${u.first_name || ""} ${u.last_name || ""} (${u.mobile_no || ""})`,
+          label: `${u.first_name || ""} ${u.last_name || ""} (${
+            u.mobile_no || ""
+          })`,
         }));
         setUsers(options);
       } catch (err) {
@@ -91,7 +94,9 @@ const RegisterBusinessNoPayment = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const res = await axios.get("https://api.seaneb.com/api/mobile/business-category-list?limit=50");
+        const res = await axios.get(
+          "https://api.seaneb.com/api/mobile/business-category-list?limit=50"
+        );
         const list = res.data?.data?.data || [];
         const opts = list.map((cat) => ({
           value: cat.category, // 👈 use readable category name as value
@@ -105,31 +110,59 @@ const RegisterBusinessNoPayment = () => {
     fetchCategories();
   }, []);
 
-  // Helper: extract address components from Google Place result
-  const extractAddressComponents = (components = []) => {
-    const find = (types) => {
-      for (const t of types) {
-        const c = components.find((comp) => comp.types.includes(t));
-        if (c) return c.long_name;
-      }
-      return "";
-    };
-    const findShort = (types) => {
-      for (const t of types) {
-        const c = components.find((comp) => comp.types.includes(t));
-        if (c) return c.short_name;
-      }
-      return "";
-    };
-    return {
-      area: find(["sublocality_level_2", "sublocality_level_1", "neighborhood", "locality"]),
-      city: find(["locality", "administrative_area_level_2"]),
-      state: find(["administrative_area_level_1"]),
-      country: find(["country"]),
-      country_short: findShort(["country"]),
-      zip_code: find(["postal_code"]),
-    };
+const extractAddressComponents = (components = []) => {
+  const find = (types) => {
+    for (const t of types) {
+      const c = components.find((comp) => comp.types.includes(t));
+      if (c) return c.long_name;
+    }
+    return "";
   };
+
+  const findShort = (types) => {
+    for (const t of types) {
+      const c = components.find((comp) => comp.types.includes(t));
+      if (c) return c.short_name;
+    }
+    return "";
+  };
+
+  // Extract all relevant levels
+  const route = find(["route"]);
+  const sublocality2 = find(["sublocality_level_2"]);
+  const sublocality1 = find(["sublocality_level_1"]);
+  const neighborhood = find(["neighborhood"]);
+  const locality = find(["locality"]);
+  const taluka = find(["administrative_area_level_3"]);
+  const district = find(["administrative_area_level_2"]);
+  const state = find(["administrative_area_level_1"]);
+  const country = find(["country"]);
+  const country_short = findShort(["country"]);
+  const zip_code = find(["postal_code"]);
+
+  // 🏘️ Build best "area" (precise location)
+  // Priority: sublocality > neighborhood > route > locality
+  let area = sublocality2 || sublocality1 || neighborhood || route || locality;
+
+  // 🏙️ Build best "city"
+  // Priority: locality (if distinct) > taluka > district
+  let city = locality;
+  if (!city || (area && city && city.toLowerCase() === area.toLowerCase())) {
+    if (taluka && taluka.toLowerCase() !== area?.toLowerCase()) {
+      city = taluka;
+    } else if (district && district.toLowerCase() !== area?.toLowerCase()) {
+      city = district;
+    }
+  }
+
+  // 🧹 Clean up redundant overlaps (e.g., "Juna Dumaral Road, Juna Dumaral Road")
+  if (city && area && area.toLowerCase().includes(city.toLowerCase())) {
+    area = area.replace(new RegExp(city, "i"), "").trim().replace(/,\s*$/, "");
+  }
+
+  return { area, city, state, country, country_short, zip_code };
+};
+
 
   // Generate SeaNeB ID from business name + area (safe/fallback logic)
   const generateSeanebId = (businessName, area) => {
@@ -140,93 +173,106 @@ const RegisterBusinessNoPayment = () => {
   };
 
   // Search Google Places (business)
-  const searchGoogleBusiness = async (query) => {
-    if (!query || query.length < 2) {
-      setGmbOptions([]);
-      return;
-    }
-    initGoogleServices();
-    if (!serviceRef.current) return;
+const searchGoogleBusiness = async (query) => {
+  if (!query || query.length < 2) {
+    setGmbOptions([]);
+    return;
+  }
 
-    setLoadingGMB(true);
-    const formattedQuery = query.trim().replace(/\s{2,}/g, " ").replace(/\s+/g, ", ");
-    let locationBias = new window.google.maps.LatLng(22.5645, 72.9289); // Anand default
+  initGoogleServices();
+  if (!serviceRef.current) return;
 
-    // attempt to use geolocation to bias results (non-blocking)
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          locationBias = new window.google.maps.LatLng(pos.coords.latitude, pos.coords.longitude);
+  setLoadingGMB(true);
+
+  const formattedQuery = query
+    .trim()
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+/g, ", ");
+
+  let locationBias = new window.google.maps.LatLng(22.5645, 72.9289); // Anand default
+
+  // try to get user location for better accuracy
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        locationBias = new window.google.maps.LatLng(
+          pos.coords.latitude,
+          pos.coords.longitude
+        );
+      },
+      () => {
+        // ignore geolocation failure
+      }
+    );
+  }
+
+  const getPredictions = (input) =>
+    new Promise((resolve) => {
+      serviceRef.current.getPlacePredictions(
+        {
+          input,
+          types: ["establishment"],
+          componentRestrictions: { country: "in" },
+          locationBias: { center: locationBias, radius: 50000 },
         },
-        () => {
-          // ignore geolocation failure
+        (predictions, status) => {
+          if (
+            status === window.google.maps.places.PlacesServiceStatus.OK &&
+            predictions?.length
+          ) {
+            resolve(predictions);
+          } else {
+            resolve([]);
+          }
         }
       );
-    }
+    });
 
-    const getPredictions = (input) =>
-      new Promise((resolve) => {
-        serviceRef.current.getPlacePredictions(
-          {
-            input,
-            types: ["establishment"],
-            componentRestrictions: { country: "in" },
-            locationBias: { center: locationBias, radius: 50000 },
-          },
-          (predictions, status) => {
-            if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions?.length) {
-              resolve(predictions);
-            } else resolve([]);
-          }
-        );
-      });
+  try {
+    const predictions = await getPredictions(formattedQuery);
 
-    try {
-      const predictions = await getPredictions(formattedQuery);
-      if (predictions.length > 0) {
-        setGmbOptions(
-          predictions.map((p) => ({
-            value: p.description,
-            label: p.description,
-            place_id: p.place_id,
-          }))
-        );
-        setLoadingGMB(false);
-        return;
-      }
-
-      // fallback: geocode endpoint (requires key)
-      const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
-      if (apiKey) {
-        const resp = await fetch(
-          `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
-            query
-          )}&region=in&key=${apiKey}`
-        );
-        const data = await resp.json();
-        if (data.status === "OK" && data.results.length) {
-          setGmbOptions(
-            data.results.map((r) => ({
-              value: r.formatted_address,
-              label: r.formatted_address,
-              place_id: r.place_id,
-            }))
-          );
-          setLoadingGMB(false);
-          return;
-        }
-      }
-
-      // final fallback: show typed query as option
-      setGmbOptions([{ value: query, label: query }]);
-    } catch (err) {
-      console.error("❌ searchGoogleBusiness error:", err);
-      setGmbOptions([{ value: query, label: query }]);
-    } finally {
+    // ✅ CASE 1: Predictions found
+    if (predictions.length > 0) {
+      setGmbOptions(
+        predictions.map((p) => ({
+          value: p.description,
+          label: p.description,
+          place_id: p.place_id,
+        }))
+      );
       setLoadingGMB(false);
+      return;
     }
-  };
 
+    // ✅ CASE 2: Fallback to geocode API (no process.env)
+    const apiKey = "AIzaSyCGmynZkLMmuiI7fMh_qcwHdqx3LHet9Ik"; // use your live key directly
+    const resp = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+        query
+      )}&region=in&key=${apiKey}`
+    );
+
+    const data = await resp.json();
+
+    if (data.status === "OK" && data.results.length) {
+      setGmbOptions(
+        data.results.map((r) => ({
+          value: r.formatted_address,
+          label: r.formatted_address,
+          place_id: r.place_id,
+        }))
+      );
+    } else {
+      // ✅ CASE 3: Fallback — typed query only
+      setGmbOptions([{ value: query, label: query }]);
+    }
+  } catch (err) {
+    console.error("❌ searchGoogleBusiness error:", err);
+    setGmbOptions([{ value: query, label: query }]);
+  } finally {
+    setLoadingGMB(false);
+  }
+};
 
   // When user selects a Google Business option -> get details & populate form
   const handleGMBSelect = (selected) => {
@@ -241,14 +287,19 @@ const RegisterBusinessNoPayment = () => {
           business_name: selected.value || prev.business_name,
           address: selected.value || prev.address,
         };
-        newSF.seaneb_id = generateSeanebId(newSF.business_name, newSF.area || newSF.city);
+        newSF.seaneb_id = generateSeanebId(
+          newSF.business_name,
+          newSF.area || newSF.city
+        );
         return newSF;
       });
       return;
     }
 
     // Use PlacesService to fetch details
-    const detailsService = new window.google.maps.places.PlacesService(document.createElement("div"));
+    const detailsService = new window.google.maps.places.PlacesService(
+      document.createElement("div")
+    );
     detailsService.getDetails(
       {
         placeId: selected.place_id,
@@ -264,20 +315,33 @@ const RegisterBusinessNoPayment = () => {
         ],
       },
       (place, status) => {
-        if (status === window.google.maps.places.PlacesServiceStatus.OK && place) {
+        if (
+          status === window.google.maps.places.PlacesServiceStatus.OK &&
+          place
+        ) {
           const lat = place.geometry?.location?.lat() || "";
           const lng = place.geometry?.location?.lng() || "";
           const addr = extractAddressComponents(place.address_components || []);
-          const generatedId = generateSeanebId(place.name, addr.area || addr.city);
+          const generatedId = generateSeanebId(
+            place.name,
+            addr.area || addr.city
+          );
 
           // Extract typed Google categories from place.types
           const googleCategories = (place.types || [])
             .map((t) => t.replace(/_/g, " "))
-            .filter((t) => t && !t.includes("point of interest") && !t.includes("establishment"));
+            .filter(
+              (t) =>
+                t &&
+                !t.includes("point of interest") &&
+                !t.includes("establishment")
+            );
 
           // Merge any missing GMB categories into categories dropdown
           const existingLabels = categories.map((c) => c.label.toLowerCase());
-          const newGmbCats = googleCategories.filter((gc) => !existingLabels.includes(gc.toLowerCase()));
+          const newGmbCats = googleCategories.filter(
+            (gc) => !existingLabels.includes(gc.toLowerCase())
+          );
           if (newGmbCats.length > 0) {
             const newOptions = newGmbCats.map((c) => ({
               value: `gmb_${c.toLowerCase().replace(/\s+/g, "_")}`,
@@ -289,7 +353,10 @@ const RegisterBusinessNoPayment = () => {
 
           // Auto-select categories that match existing or newly added
           const matchedCategoryLabels = googleCategories.filter((gc) =>
-            [...existingLabels, ...newGmbCats.map((n) => n.toLowerCase())].includes(gc.toLowerCase())
+            [
+              ...existingLabels,
+              ...newGmbCats.map((n) => n.toLowerCase()),
+            ].includes(gc.toLowerCase())
           );
 
           setFromGoogle(true);
@@ -309,7 +376,9 @@ const RegisterBusinessNoPayment = () => {
             zip_code: addr.zip_code || prev.zip_code,
             seaneb_id: generatedId,
             // store selected category labels (not ids) — keeps your previous approach
-            business_category_ids: matchedCategoryLabels.length ? matchedCategoryLabels : prev.business_category_ids,
+            business_category_ids: matchedCategoryLabels.length
+              ? matchedCategoryLabels
+              : prev.business_category_ids,
           }));
         } else {
           // not OK
@@ -319,35 +388,75 @@ const RegisterBusinessNoPayment = () => {
     );
   };
 
+const searchArea = async (query) => {
+  if (!query || query.length < 2) return setAreaOptions([]);
+  initGoogleServices();
+  if (!areaServiceRef.current) return;
 
+  console.log("🔍 Searching area:", query);
 
-  // Search area options (always available)
-  const searchArea = (query) => {
-    if (!query || query.length < 2) return setAreaOptions([]);
-    initGoogleServices();
-    if (!areaServiceRef.current) return;
+  // Set up a region bias around India
+  const indiaBounds = new window.google.maps.LatLngBounds(
+    new window.google.maps.LatLng(6.5546, 68.1114),   // South-West
+    new window.google.maps.LatLng(37.0970, 97.3956)   // North-East
+  );
 
-    areaServiceRef.current.getPlacePredictions(
-      {
-        input: query,
-        types: ["sublocality", "locality", "neighborhood"],
-        componentRestrictions: { country: "in" },
-      },
-      (predictions, status) => {
-        if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions?.length) {
-          setAreaOptions(
-            predictions.map((p) => ({
-              value: p.description,
-              label: p.description,
-              place_id: p.place_id,
-            }))
+  // 🔧 Step 1: Try normal autocomplete predictions
+  areaServiceRef.current.getPlacePredictions(
+    {
+      input: query,
+      // ❌ no types here — let Google decide (regions, sublocalities, roads)
+      componentRestrictions: { country: "in" },
+      bounds: indiaBounds,
+    },
+    async (predictions, status) => {
+      console.log("📍 Autocomplete status:", status, predictions);
+
+      if (
+        status === window.google.maps.places.PlacesServiceStatus.OK &&
+        predictions?.length
+      ) {
+        const formatted = predictions.map((p) => ({
+          value: p.description,
+          label: p.description,
+          place_id: p.place_id,
+        }));
+        setAreaOptions(formatted);
+      } else {
+        console.warn("⚠️ No autocomplete predictions. Trying Geocode fallback...");
+
+        // Step 2: Fallback to Geocode API
+        const apiKey = "AIzaSyCGmynZkLMmuiI7fMh_qcwHdqx3LHet9Ik"; // your live key
+        try {
+          const resp = await fetch(
+            `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+              query
+            )}&region=in&key=${apiKey}`
           );
-        } else {
+          const data = await resp.json();
+          console.log("🗺️ Fallback geocode:", data);
+
+          if (data.status === "OK" && data.results.length > 0) {
+            const options = data.results.map((r) => ({
+              value: r.formatted_address,
+              label: r.formatted_address,
+              place_id: r.place_id,
+            }));
+            setAreaOptions(options);
+          } else {
+            console.warn("❌ Fallback geocode also returned nothing.");
+            setAreaOptions([]);
+          }
+        } catch (err) {
+          console.error("❌ Geocode fallback error:", err);
           setAreaOptions([]);
         }
       }
-    );
-  };
+    }
+  );
+};
+
+
 
   // When area is selected from dropdown: fill address parts and update seaneb id
   const handleAreaSelect = (selected) => {
@@ -364,18 +473,31 @@ const RegisterBusinessNoPayment = () => {
       return;
     }
 
-    const detailsService = new window.google.maps.places.PlacesService(document.createElement("div"));
+    const detailsService = new window.google.maps.places.PlacesService(
+      document.createElement("div")
+    );
     detailsService.getDetails(
-      { placeId: selected.place_id, fields: ["address_components", "geometry", "place_id"] },
+      {
+        placeId: selected.place_id,
+        fields: ["address_components", "geometry", "place_id"],
+      },
       (place, status) => {
-        if (status === window.google.maps.places.PlacesServiceStatus.OK && place) {
+        if (
+          status === window.google.maps.places.PlacesServiceStatus.OK &&
+          place
+        ) {
           const addr = extractAddressComponents(place.address_components || []);
           const lat = place.geometry?.location?.lat() || "";
           const lng = place.geometry?.location?.lng() || "";
-          const generatedId = generateSeanebId(formData.business_name || "", addr.area || addr.city);
+          const generatedId = generateSeanebId(
+            formData.business_name || "",
+            addr.area || addr.city
+          );
 
           // ✅ Always build a valid Maps link
-          const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selected.value)}&query_place_id=${selected.place_id}`;
+          const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+            selected.value
+          )}&query_place_id=${selected.place_id}`;
 
           console.log("✅ Final Google Map URL:", mapUrl);
 
@@ -399,7 +521,6 @@ const RegisterBusinessNoPayment = () => {
     );
   };
 
-
   // Handle typing into inputs
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -411,7 +532,10 @@ const RegisterBusinessNoPayment = () => {
     const next = { ...formData, [name]: value };
 
     // If business_name or area changed, regenerate seaneb_id (unless user unlocked and editing id manually)
-    if ((name === "business_name" || name === "area") && !formData.allowEditId) {
+    if (
+      (name === "business_name" || name === "area") &&
+      !formData.allowEditId
+    ) {
       const biz = name === "business_name" ? value : formData.business_name;
       const ar = name === "area" ? value : formData.area;
       next.seaneb_id = generateSeanebId(biz, ar);
@@ -426,90 +550,103 @@ const RegisterBusinessNoPayment = () => {
   };
 
   // Submit form
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  setMessage("");
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage("");
 
-  try {
-    // ✅ clone formData first
-    let payload = {
-      ...formData,
-      business_category: (formData.business_category_ids || []).join(", "),
-      icon: generateAvatarUrl(formData.business_name), 
-    };
+    try {
+      // ✅ clone formData first
+      let payload = {
+        ...formData,
+        business_category: (formData.business_category_ids || []).join(", "),
+        icon: generateAvatarUrl(formData.business_name),
+      };
 
-    // ✅ Add fallback if google_map_id missing
-    if (!payload.google_map_id || !payload.google_map_id.trim()) {
-      if (formData.area || formData.city) {
-        payload.google_map_id = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-          formData.area + " " + formData.city
-        )}`;
-      } else if (formData.latitude && formData.longitude) {
-        payload.google_map_id = `https://www.google.com/maps/search/?api=1&query=${formData.latitude},${formData.longitude}`;
-      } else {
-        payload.google_map_id = null;
+      // ✅ Add fallback if google_map_id missing
+      if (!payload.google_map_id || !payload.google_map_id.trim()) {
+        if (formData.area || formData.city) {
+          payload.google_map_id = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+            formData.area + " " + formData.city
+          )}`;
+        } else if (formData.latitude && formData.longitude) {
+          payload.google_map_id = `https://www.google.com/maps/search/?api=1&query=${formData.latitude},${formData.longitude}`;
+        } else {
+          payload.google_map_id = null;
+        }
       }
+
+      // ✅ Now log and confirm before sending
+      console.log("🚀 FINAL PAYLOAD SENT:", payload);
+
+      delete payload.business_category_ids;
+      delete payload.allowEditId;
+
+      const res = await axios.post(
+        "https://api.seaneb.com/api/mobile/register-business-no-payment",
+        payload
+      );
+
+      setMessage(
+        `✅ ${res.data.message || "Business registered successfully!"}`
+      );
+      setFormData({
+        business_name: "",
+        email: "",
+        pan_number: "",
+        gst_number: "",
+        seaneb_id: "",
+        allowEditId: false,
+        address: "",
+        contact_no: "",
+        website: "",
+        latitude: "",
+        longitude: "",
+        area: "",
+        city: "",
+        state: "",
+        country: "",
+        country_short: "",
+        zip_code: "",
+        google_map_id: "",
+        u_id: "",
+        business_category_ids: [],
+      });
+      setFromGoogle(false);
+    } catch (err) {
+      console.error(
+        "❌ Registration error:",
+        err.response?.data || err.message
+      );
+      const serverMsg = err.response?.data?.message || "";
+
+      if (serverMsg.includes("SeaNeB ID already exists")) {
+        setMessage(
+          "⚠️ This SeaNeB ID is already registered. Please pick a different one."
+        );
+      } else if (serverMsg.includes("GST number already exists")) {
+        setMessage(
+          "⚠️ This GST number is already registered with another business."
+        );
+      } else if (serverMsg.includes("PAN number already exists")) {
+        setMessage(
+          "⚠️ This PAN number is already registered with another business."
+        );
+      } else if (serverMsg.includes("email already exists")) {
+        setMessage("⚠️ This email is already registered.");
+      } else if (serverMsg.includes("mobile number already exists")) {
+        setMessage("⚠️ This mobile number is already registered.");
+      } else if (serverMsg.includes("already linked with another business")) {
+        setMessage(
+          "⚠️ This user is already linked with another business. Please select a different user."
+        );
+      } else {
+        setMessage("❌ Registration failed. Please try again later.");
+      }
+    } finally {
+      setLoading(false);
     }
-
-    // ✅ Now log and confirm before sending
-    console.log("🚀 FINAL PAYLOAD SENT:", payload);
-
-    delete payload.business_category_ids;
-    delete payload.allowEditId;
-
-    const res = await axios.post(
-      "https://api.seaneb.com/api/mobile/register-business-no-payment",
-      payload
-    );
-
-    setMessage(`✅ ${res.data.message || "Business registered successfully!"}`);
-    setFormData({
-      business_name: "",
-      email: "",
-      pan_number: "",
-      gst_number: "",
-      seaneb_id: "",
-      allowEditId: false,
-      address: "",
-      contact_no: "",
-      website: "",
-      latitude: "",
-      longitude: "",
-      area: "",
-      city: "",
-      state: "",
-      country: "",
-      country_short: "",
-      zip_code: "",
-      google_map_id: "",
-      u_id: "",
-      business_category_ids: [],
-    });
-    setFromGoogle(false);
-  } catch (err) {
-    console.error("❌ Registration error:", err.response?.data || err.message);
-    const serverMsg = err.response?.data?.message || "";
-
-    if (serverMsg.includes("SeaNeB ID already exists")) {
-      setMessage("⚠️ This SeaNeB ID is already registered. Please pick a different one.");
-    } else if (serverMsg.includes("GST number already exists")) {
-      setMessage("⚠️ This GST number is already registered with another business.");
-    } else if (serverMsg.includes("PAN number already exists")) {
-      setMessage("⚠️ This PAN number is already registered with another business.");
-    } else if (serverMsg.includes("email already exists")) {
-      setMessage("⚠️ This email is already registered.");
-    } else if (serverMsg.includes("mobile number already exists")) {
-      setMessage("⚠️ This mobile number is already registered.");
-    } else if (serverMsg.includes("already linked with another business")) {
-      setMessage("⚠️ This user is already linked with another business. Please select a different user.");
-    } else {
-      setMessage("❌ Registration failed. Please try again later.");
-    }
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-200 px-4 py-8">
@@ -527,7 +664,6 @@ const handleSubmit = async (e) => {
           <p className="text-sm text-gray-500 mt-2">Auto-generated avatar</p>
         </div>
 
-
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Google Business Search */}
           <div>
@@ -541,13 +677,19 @@ const handleSubmit = async (e) => {
                 return v;
               }}
               onChange={handleGMBSelect}
-              placeholder={loadingGMB ? "Searching..." : "Search by Business Name (optional)"}
+              placeholder={
+                loadingGMB
+                  ? "Searching..."
+                  : "Search by Business Name (optional)"
+              }
               isLoading={loadingGMB}
               isClearable
             />
           </div>
 
-          <p className="text-center text-gray-500 text-sm">OR add manually 👇</p>
+          <p className="text-center text-gray-500 text-sm">
+            OR add manually 👇
+          </p>
 
           {/* Manual Fields */}
           <input
@@ -562,7 +704,9 @@ const handleSubmit = async (e) => {
 
           <Select
             options={users}
-            onChange={(e) => setFormData((p) => ({ ...p, u_id: e?.value || "" }))}
+            onChange={(e) =>
+              setFormData((p) => ({ ...p, u_id: e?.value || "" }))
+            }
             placeholder="Select User"
             isClearable
           />
@@ -575,7 +719,9 @@ const handleSubmit = async (e) => {
             onChange={(selected) =>
               setFormData((p) => ({
                 ...p,
-                business_category_ids: selected ? selected.map((s) => s.value) : [],
+                business_category_ids: selected
+                  ? selected.map((s) => s.value)
+                  : [],
               }))
             }
             onCreateOption={(inputValue) => {
@@ -649,7 +795,9 @@ const handleSubmit = async (e) => {
 
           {/* Always show Search Area — editable regardless of fromGoogle */}
           <div>
-            <label className="block text-gray-700 text-sm font-semibold mb-2">Search Area</label>
+            <label className="block text-gray-700 text-sm font-semibold mb-2">
+              Search Area
+            </label>
             <Select
               options={areaOptions}
               onInputChange={(v) => {
@@ -717,14 +865,19 @@ const handleSubmit = async (e) => {
               placeholder="SeaNeB ID"
               value={formData.seaneb_id}
               onChange={handleChange}
-              className={`p-3 border rounded-lg w-full text-gray-700 ${message.includes("SeaNeB ID") ? "border-red-500 bg-red-50" : "border-gray-300"
-                }`}
+              className={`p-3 border rounded-lg w-full text-gray-700 ${
+                message.includes("SeaNeB ID")
+                  ? "border-red-500 bg-red-50"
+                  : "border-gray-300"
+              }`}
               readOnly={!formData.allowEditId}
             />
             <button
               type="button"
               onClick={toggleAllowEditId}
-              className={`px-3 py-2 ${formData.allowEditId ? "bg-green-600" : "bg-yellow-500"} text-white rounded-lg hover:opacity-90 transition`}
+              className={`px-3 py-2 ${
+                formData.allowEditId ? "bg-green-600" : "bg-yellow-500"
+              } text-white rounded-lg hover:opacity-90 transition`}
             >
               {formData.allowEditId ? "Lock" : "Edit"}
             </button>
@@ -740,7 +893,11 @@ const handleSubmit = async (e) => {
         </form>
 
         {message && (
-          <p className={`mt-6 text-center font-medium ${message.includes("❌") ? "text-red-600" : "text-green-700"}`}>
+          <p
+            className={`mt-6 text-center font-medium ${
+              message.includes("❌") ? "text-red-600" : "text-green-700"
+            }`}
+          >
             {message}
           </p>
         )}
