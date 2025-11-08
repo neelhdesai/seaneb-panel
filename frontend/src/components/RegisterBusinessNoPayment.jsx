@@ -13,6 +13,8 @@ const RegisterBusinessNoPayment = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [fromGoogle, setFromGoogle] = useState(false);
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+
 
   const serviceRef = useRef(null);
   const areaServiceRef = useRef(null);
@@ -245,7 +247,6 @@ const searchGoogleBusiness = async (query) => {
     }
 
     // ✅ CASE 2: Fallback to geocode API (no process.env)
-    const apiKey = "AIzaSyCGmynZkLMmuiI7fMh_qcwHdqx3LHet9Ik"; // use your live key directly
     const resp = await fetch(
       `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
         query
@@ -404,6 +405,7 @@ const searchArea = async (query) => {
   areaServiceRef.current.getPlacePredictions(
     {
       input: query,
+      types: ["(regions)"], // ✅ restrict to regions only (no buildings)
       componentRestrictions: { country: "in" },
       bounds: indiaBounds,
     },
@@ -414,8 +416,13 @@ const searchArea = async (query) => {
         status === window.google.maps.places.PlacesServiceStatus.OK &&
         predictions?.length
       ) {
-        const formatted = predictions.map((p) => {
-          // Extract clean name from structured_formatting if available
+        // ✅ Filter out unwanted place types (buildings, establishments, routes)
+        const areaPredictions = predictions.filter((p) => {
+          const t = (p.types || []).join(",").toLowerCase();
+          return !t.includes("establishment") && !t.includes("premise") && !t.includes("route");
+        });
+
+        const formatted = areaPredictions.map((p) => {
           const mainText = p.structured_formatting?.main_text || p.description;
           const secondaryText = p.structured_formatting?.secondary_text || "";
           const cleanValue = mainText.trim();
@@ -428,12 +435,12 @@ const searchArea = async (query) => {
           };
         });
 
-        setAreaOptions(formatted);
+        setAreaOptions(formatted.length ? formatted : []);
       } else {
         console.warn("⚠️ No autocomplete predictions. Trying Geocode fallback...");
 
         // 🧭 Fallback to Geocode API
-        const apiKey = "AIzaSyCGmynZkLMmuiI7fMh_qcwHdqx3LHet9Ik";
+        const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
         try {
           const resp = await fetch(
             `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
@@ -444,15 +451,21 @@ const searchArea = async (query) => {
           console.log("🗺️ Fallback geocode:", data);
 
           if (data.status === "OK" && data.results.length > 0) {
-            const options = data.results.map((r) => {
-              const parts = r.formatted_address.split(",");
-              const main = parts[0]?.trim() || r.formatted_address;
-              return {
-                value: main, // ✅ "Ahmedabad"
-                label: r.formatted_address, // ✅ "Ahmedabad, Gujarat, India"
-                place_id: r.place_id,
-              };
-            });
+            const options = data.results
+              .filter((r) => {
+                // ✅ skip if type includes building or premise
+                const types = (r.types || []).join(",");
+                return !types.includes("establishment") && !types.includes("premise");
+              })
+              .map((r) => {
+                const parts = r.formatted_address.split(",");
+                const main = parts[0]?.trim() || r.formatted_address;
+                return {
+                  value: main,
+                  label: r.formatted_address,
+                  place_id: r.place_id,
+                };
+              });
             setAreaOptions(options);
           } else {
             console.warn("❌ Fallback geocode also returned nothing.");
