@@ -19,7 +19,6 @@ const BusinessShowcasePage = () => {
         const fetchBusinesses = async () => {
             try {
                 if (!token) {
-                    console.warn("No auth token in localStorage");
                     return;
                 }
                 const res = await axios.get(
@@ -45,7 +44,6 @@ const BusinessShowcasePage = () => {
                 }));
                 setCities(uniqueCities);
             } catch (err) {
-                console.error("Error fetching businesses:", err?.response?.data || err);
             }
         };
 
@@ -65,14 +63,12 @@ const BusinessShowcasePage = () => {
 
         try {
             const url = `https://api.seaneb.com/api/mobile/showcase-cursor-list/${u_id}`;
-            console.log("GET", url, { limit: 10 });
 
             const res = await axios.get(url, {
                 headers: { Authorization: `Bearer ${token}` },
                 params: { limit: 10 },
             });
 
-            console.log("Showcase API response:", res.data);
 
             // expected server format (from your backend): { data: { data: [...] , next_cursor } }
             const list = res?.data?.data?.data ?? [];
@@ -86,7 +82,6 @@ const BusinessShowcasePage = () => {
 
             setShowcases(list);
         } catch (err) {
-            console.error("Error fetching showcases:", err?.response?.data || err);
             const serverMsg = err?.response?.data?.message;
             setMessage(`❌ Failed to load showcases${serverMsg ? `: ${serverMsg}` : ""}.`);
         } finally {
@@ -127,7 +122,6 @@ const BusinessShowcasePage = () => {
                 business_category: business?.business_category || "general",
             };
 
-            console.log("📤 Payload sent to promote API:", payload);
 
             const res = await axios.post(
                 "https://api.seaneb.com/api/mobile/promote-showcase",
@@ -135,7 +129,6 @@ const BusinessShowcasePage = () => {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            console.log("📥 API Response:", res.data);
 
             if (res.data?.status || res.data?.success) {
                 setMessage("✅ Showcase promoted successfully!");
@@ -143,7 +136,6 @@ const BusinessShowcasePage = () => {
                 setMessage(`⚠️ Promotion failed: ${res.data?.message || "Unknown issue"}`);
             }
         } catch (err) {
-            console.error("❌ Error promoting showcase:", err);
 
             if (err.response) {
                 const status = err.response.status;
@@ -257,11 +249,9 @@ const BusinessShowcasePage = () => {
                                             alt={showcase.description || "Showcase"}
                                             className="w-full h-64 object-cover rounded-lg"
                                             onError={(e) => {
-                                                console.error("❌ Image failed to load:", e.target.src);
 
                                                 const original = e.target.src.replace("-300x300", "");
                                                 if (original !== e.target.src) {
-                                                    console.log("🔄 Trying original image:", original);
                                                     e.target.src = original;
                                                 } else {
                                                     e.target.src = "https://via.placeholder.com/400x250?text=Image+not+found";
