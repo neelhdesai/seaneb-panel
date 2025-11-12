@@ -179,19 +179,24 @@ const BusinessShowcasePage = () => {
                 </h2>
 
                 <div className="mb-6">
-                    <label className="block font-medium text-gray-700 mb-2">
-                        Filter by City
-                    </label>
-                    <Select
-                        options={cities}
-                        value={selectedCity}
-                        onChange={(opt) => {
-                            setSelectedCity(opt);
-                            setSelectedBusiness(null);
-                        }}
-                        placeholder="Select a city..."
-                        isClearable
-                    />
+                    
+                    <div className="mb-6">
+                        <label className="block font-medium text-gray-700 mb-2">
+                            Filter by City
+                        </label>
+                        <Select
+                            options={cities}
+                            value={selectedCity}
+                            onChange={(opt) => {
+                                setSelectedCity(opt);
+                                setSelectedBusiness(null);
+                                setShowcases([]);
+                                setMessage("");
+                            }}
+                            placeholder="Select a city..."
+                            isClearable
+                        />
+                    </div>
                 </div>
 
 
@@ -206,7 +211,22 @@ const BusinessShowcasePage = () => {
                                 ? businesses.filter((b) => b.city === selectedCity.value)
                                 : businesses
                         }
-                        placeholder="Search and select a business..."
+                        value={selectedBusiness}
+                        onChange={(opt) => {
+                            setSelectedBusiness(opt);
+
+                            // ✅ Make sure we call fetchShowcases with a valid value
+                            if (opt?.value) {
+                                fetchShowcases(opt.value);
+                            } else {
+                                setShowcases([]); // clear showcases if cleared
+                            }
+                        }}
+                        placeholder={
+                            selectedCity
+                                ? `Select business in ${selectedCity.value}...`
+                                : "Search and select a business..."
+                        }
                         isClearable
                     />
                 </div>
