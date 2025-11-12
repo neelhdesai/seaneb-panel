@@ -9,6 +9,9 @@ const BusinessShowcasePage = () => {
     const [loading, setLoading] = useState(false);
     const [promoting, setPromoting] = useState(null);
     const [message, setMessage] = useState("");
+    const [cities, setCities] = useState([]);
+    const [selectedCity, setSelectedCity] = useState(null);
+
 
     const token = localStorage.getItem("token");
 
@@ -35,6 +38,12 @@ const BusinessShowcasePage = () => {
                 }));
 
                 setBusinesses(opts);
+                // ✅ Extract unique cities for filter
+                const uniqueCities = [...new Set(opts.map((b) => b.city).filter(Boolean))].map((city) => ({
+                    value: city,
+                    label: city,
+                }));
+                setCities(uniqueCities);
             } catch (err) {
                 console.error("Error fetching businesses:", err?.response?.data || err);
             }
@@ -169,17 +178,34 @@ const BusinessShowcasePage = () => {
                     🎬 Business Showcases
                 </h2>
 
+                <div className="mb-6">
+                    <label className="block font-medium text-gray-700 mb-2">
+                        Filter by City
+                    </label>
+                    <Select
+                        options={cities}
+                        value={selectedCity}
+                        onChange={(opt) => {
+                            setSelectedCity(opt);
+                            setSelectedBusiness(null);
+                        }}
+                        placeholder="Select a city..."
+                        isClearable
+                    />
+                </div>
+
+
 
                 <div className="mb-6">
                     <label className="block font-medium text-gray-700 mb-2">
                         Select Business
                     </label>
                     <Select
-                        options={businesses}
-                        onChange={(opt) => {
-                            setSelectedBusiness(opt);
-                            fetchShowcases(opt?.value);
-                        }}
+                        options={
+                            selectedCity
+                                ? businesses.filter((b) => b.city === selectedCity.value)
+                                : businesses
+                        }
                         placeholder="Search and select a business..."
                         isClearable
                     />
@@ -212,7 +238,7 @@ const BusinessShowcasePage = () => {
                                             className="w-full h-64 object-cover rounded-lg"
                                             onError={(e) => {
                                                 console.error("❌ Image failed to load:", e.target.src);
-                                              
+
                                                 const original = e.target.src.replace("-300x300", "");
                                                 if (original !== e.target.src) {
                                                     console.log("🔄 Trying original image:", original);
