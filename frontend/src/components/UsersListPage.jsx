@@ -2,270 +2,322 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 
 const UsersListPage = () => {
-  const [users, setUsers] = useState([]);
-  const [originalUsers, setOriginalUsers] = useState([]);
-  const [pageInfo, setPageInfo] = useState({
-    page: 1,
-    pages: 1,
-    limit: 20,
-  });
+    const [users, setUsers] = useState([]); // sliced users for table
+    const [originalUsers, setOriginalUsers] = useState([]); // full list from API
+    const [filteredUsers, setFilteredUsers] = useState([]); // after search/filter
 
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState("");
+    const [pageInfo, setPageInfo] = useState({
+        page: 1,
+        pages: 1,
+        limit: 20,
+    });
 
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [search, setSearch] = useState("");
 
-  const [selectedBusiness, setSelectedBusiness] = useState(null);
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
 
-  const token = localStorage.getItem("token");
+    const [selectedBusiness, setSelectedBusiness] = useState(null);
 
-  const safe = (v) => (v && v !== "" ? v : "N/A");
+    const token = localStorage.getItem("token");
 
-  const fetchUsers = async (page = 1) => {
-    try {
-      setLoading(true);
+    const safe = (v) => (v && v !== "" ? v : "N/A");
 
-      const res = await axios.get("https://api.seaneb.com/admin/all-users", {
-        headers: { Authorization: `Bearer ${token}` },
-        params: {
-          page,
-          limit: 20,
-          start_date: startDate,
-          end_date: endDate,
-        },
-      });
+    // =============================
+    // FETCH ALL USERS (GLOBAL LOAD)
+    // =============================
+    const fetchUsers = async () => {
+        try {
+            setLoading(true);
 
-      const data = res.data?.data;
-      const pages = data?.pages > 0 ? data.pages : 1;
+            const res = await axios.get("https://api.seaneb.com/admin/all-users", {
+                headers: { Authorization: `Bearer ${token}` },
+                params: {
+                    page: 1,
+                    limit: 999999, // load all users at once
+                    start_date: startDate,
+                    end_date: endDate,
+                },
+            });
 
-      setUsers(data?.users || []);
-      setOriginalUsers(data?.users || []);
+            const allUsers = res.data?.data?.users || [];
 
-      setPageInfo({
-        page: data?.page || 1,
-        pages,
-        limit: data?.limit || 20,
-      });
-    } catch (err) {
-      console.error("Error fetching users:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+            setOriginalUsers(allUsers);
+            setFilteredUsers(allUsers); // default full list
 
-  useEffect(() => {
-    fetchUsers(1);
-  }, []);
+            const totalPages = Math.ceil(allUsers.length / 20);
 
-  const handleSearch = (value) => {
-    setSearch(value);
-    if (!value.trim()) return setUsers(originalUsers);
+            setPageInfo({
+                page: 1,
+                pages: totalPages,
+                limit: 20,
+            });
 
-    const filtered = originalUsers.filter((u) =>
-      `${u.first_name} ${u.last_name}`.toLowerCase().includes(value.toLowerCase())
-    );
+            setUsers(allUsers.slice(0, 20)); // first page only
+        } catch (err) {
+            console.error("Error fetching users:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-    setUsers(filtered);
-  };
+    // =============================
+    // PAGINATION — USE filteredUsers
+    // =============================
+    const gotoPage = (page) => {
+        const { limit } = pageInfo;
 
-  return (
-    <div className="min-h-screen bg-white p-3 sm:p-5 flex justify-center">
-      <div className="w-full max-w-6xl mx-auto">
+        const start = (page - 1) * limit;
+        const end = start + limit;
 
-        <h1 className="text-2xl sm:text-3xl font-semibold text-black mb-6 text-center">
-          Users Directory
-        </h1>
+        setPageInfo((prev) => ({
+            ...prev,
+            page,
+        }));
 
-        {/* FILTERS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-4">
-          <input
-            value={search}
-            onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Search users..."
-            className="w-full px-4 py-2.5 border border-black/20 rounded-xl focus:ring-2 focus:ring-black"
-          />
+        setUsers(filteredUsers.slice(start, end));
+    };
 
-          <input
-            type="date"
-            onChange={(e) => setStartDate(e.target.value)}
-            className="w-full px-4 py-2.5 border border-black/20 rounded-xl"
-          />
+    // =============================
+    // SEARCH GLOBALLY
+    // =============================
+    const handleSearch = (value) => {
+        setSearch(value);
 
-          <input
-            type="date"
-            onChange={(e) => setEndDate(e.target.value)}
-            className="w-full px-4 py-2.5 border border-black/20 rounded-xl"
-          />
-        </div>
+        let list = originalUsers;
 
-        <button
-          onClick={() => fetchUsers(1)}
-          className="w-full sm:w-auto px-6 py-3 bg-black text-white rounded-xl hover:bg-black/80 mb-6"
-        >
-          Apply Filter
-        </button>
+        if (value.trim()) {
+            list = originalUsers.filter((u) =>
+                `${u.first_name} ${u.last_name}`
+                    .toLowerCase()
+                    .includes(value.toLowerCase())
+            );
+        }
 
-        {/* DESKTOP TABLE */}
-        <div className="hidden md:block w-full overflow-x-auto">
-          <div className="min-w-[850px] rounded-xl overflow-hidden border border-black/10 shadow">
-            <table className="w-full table-auto text-left">
-              <thead className="bg-black text-white">
-                <tr>
-                  <th className="px-5 py-4">Name</th>
-                  <th className="px-5 py-4">Mobile</th>
-                  <th className="px-5 py-4">Email</th>
-                  <th className="px-5 py-4">Business</th>
-                </tr>
-              </thead>
+        setFilteredUsers(list);
 
-              <tbody>
-                {!loading &&
-                  users.map((u, i) => (
-                    <tr key={i} className="border-t border-black/10 hover:bg-black/5">
+        const pages = Math.ceil(list.length / 20);
 
-                      <td className="px-5 py-4 font-medium">
-                        {safe(u.first_name)} {safe(u.last_name)}
-                      </td>
+        setPageInfo({
+            page: 1,
+            pages,
+            limit: 20,
+        });
 
-                      <td className="px-5 py-4">{safe(u.mobile_no)}</td>
+        setUsers(list.slice(0, 20)); // first page of filtered list
+    };
 
-                      <td className="px-5 py-4 break-all">{safe(u.email)}</td>
+    useEffect(() => {
+        fetchUsers();
+    }, []);
 
-                      <td className="px-5 py-4">
-                        {u.businesses?.length > 0 ? (
-                          <button
-                            onClick={() => setSelectedBusiness(u.businesses[0])}
-                            className="text-blue-600 cursor-pointer"
-                          >
-                            {safe(u.businesses[0].business_name)}
-                          </button>
-                        ) : (
-                          "N/A"
-                        )}
-                      </td>
+    return (
+        <div className="min-h-screen bg-white p-3 sm:p-5 flex justify-center">
+            <div className="w-full max-w-6xl mx-auto">
 
-                    </tr>
-                  ))}
+                <h1 className="text-2xl sm:text-3xl font-semibold text-black mb-6 text-center">
+                    Users Directory
+                </h1>
 
-                {!loading && users.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="py-6 text-center text-black/40">
-                      No users found
-                    </td>
-                  </tr>
-                )}
+                {/* FILTERS */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                    <input
+                        value={search}
+                        onChange={(e) => handleSearch(e.target.value)}
+                        placeholder="Search users..."
+                        className="w-full px-4 py-2.5 border border-black/20 rounded-xl focus:ring-2 focus:ring-black"
+                    />
 
-                {loading &&
-                  [...Array(5)].map((_, i) => (
-                    <tr key={i} className="animate-pulse bg-gray-100 h-12"></tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                    <input
+                        type="date"
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="w-full px-4 py-2.5 border border-black/20 rounded-xl"
+                    />
 
-        {/* MOBILE CARDS */}
-        <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-          {!loading &&
-            users.map((u, i) => (
-              <div key={i} className="border border-black/10 rounded-2xl p-4 bg-white shadow-sm">
-                <h2 className="text-lg font-semibold">
-                  {safe(u.first_name)} {safe(u.last_name)}
-                </h2>
-
-                <div className="text-sm text-black/80 mt-3 space-y-2">
-                  <p>📞 {safe(u.mobile_no)}</p>
-                  <p>✉️ {safe(u.email)}</p>
-
-                  <p className="mt-2">
-                    🏢{" "}
-                    {u.businesses?.length > 0 ? (
-                      <button
-                        onClick={() => setSelectedBusiness(u.businesses[0])}
-                        className="text-blue-600 underline"
-                      >
-                        {safe(u.businesses[0].business_name)}
-                      </button>
-                    ) : (
-                      "N/A"
-                    )}
-                  </p>
+                    <input
+                        type="date"
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="w-full px-4 py-2.5 border border-black/20 rounded-xl"
+                    />
                 </div>
-              </div>
-            ))}
-        </div>
 
-        {/* PAGINATION */}
-        <div className="flex justify-between items-center mt-8 px-2">
-          <button
-            disabled={pageInfo.page <= 1}
-            onClick={() => fetchUsers(pageInfo.page - 1)}
-            className={`px-5 py-2 rounded-xl ${
-              pageInfo.page <= 1
-                ? "bg-black/10 text-black/40 cursor-not-allowed"
-                : "bg-black text-white hover:bg-black/90"
-            }`}
-          >
-            ← Previous
-          </button>
+                <button
+                    onClick={() => fetchUsers()}
+                    className="w-full sm:w-auto px-6 py-3 bg-black text-white rounded-xl hover:bg-black/80 mb-6"
+                >
+                    Apply Filter
+                </button>
 
-          <span className="text-black font-medium">
-            Page {pageInfo.page} / {pageInfo.pages}
-          </span>
+                {/* DESKTOP TABLE */}
+                <div className="hidden md:block w-full overflow-x-auto">
+                    <div className="min-w-[850px] rounded-xl overflow-hidden border border-black/10 shadow">
+                        <table className="w-full table-auto text-left">
+                            <thead className="bg-black text-white">
+                                <tr>
+                                    <th className="px-5 py-4">Name</th>
+                                    <th className="px-5 py-4">Mobile</th>
+                                    <th className="px-5 py-4">Email</th>
+                                    <th className="px-5 py-4">Business</th>
+                                    
+                                </tr>
+                            </thead>
 
-          <button
-            disabled={pageInfo.page >= pageInfo.pages}
-            onClick={() => fetchUsers(pageInfo.page + 1)}
-            className={`px-5 py-2 rounded-xl ${
-              pageInfo.page >= pageInfo.pages
-                ? "bg-black/10 text-black/40 cursor-not-allowed"
-                : "bg-black text-white hover:bg-black/90"
-            }`}
-          >
-            Next →
-          </button>
-        </div>
-      </div>
+                            <tbody>
+                                {!loading &&
+                                    users.map((u, i) => (
+                                        <tr key={i} className="border-t border-black/10 hover:bg-black/5">
 
-      {/* MODAL */}
-      {selectedBusiness && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md relative">
+                                            <td className="px-5 py-4 font-medium">
+                                                {safe(u.first_name)} {safe(u.last_name)}
+                                            </td>
 
-            <button
-              onClick={() => setSelectedBusiness(null)}
-              className="absolute top-3 right-3 text-gray-500 hover:text-black text-xl"
-            >
-              ✕
-            </button>
+                                            <td className="px-5 py-4">{safe(u.mobile_no)}</td>
 
-            <h2 className="text-xl font-semibold mb-4">
-              {safe(selectedBusiness.business_name)}
-            </h2>
+                                            <td className="px-5 py-4 break-all">{safe(u.email)}</td>
 
-            <div className="space-y-2 text-sm text-black/80">
-              <p><strong>Legal Name:</strong> {safe(selectedBusiness.business_legal_name)}</p>
-              <p><strong>Category:</strong> {safe(selectedBusiness.business_category)}</p>
-              <p><strong>PAN:</strong> {safe(selectedBusiness.pan_number)}</p>
-              <p><strong>GST:</strong> {safe(selectedBusiness.gst_number)}</p>
+                                            <td className="px-5 py-4">
+                                                {u.businesses?.length > 0 ? (
+                                                    <button
+                                                        onClick={() => setSelectedBusiness(u.businesses[0])}
+                                                        className="text-blue-600 cursor-pointer"
+                                                    >
+                                                        {safe(u.businesses[0].business_name)}
+                                                    </button>
+                                                ) : (
+                                                    "N/A"
+                                                )}
+                                            </td>
 
-              <p><strong>Email:</strong> {safe(selectedBusiness.email)}</p>
-              <p><strong>Contact:</strong> {safe(selectedBusiness.contact_no)}</p>
-              <p><strong>Website:</strong> {safe(selectedBusiness.website_url)}</p>
+                                        </tr>
+                                    ))}
 
-              <p>
-                <strong>Address:</strong><br />
-                {safe(selectedBusiness.address_line_1)},<br />
-                {safe(selectedBusiness.area)}, {safe(selectedBusiness.city)},<br />
-                {safe(selectedBusiness.state)} - {safe(selectedBusiness.zip_code)}
-              </p>
+                                {!loading && users.length === 0 && (
+                                    <tr>
+                                        <td colSpan={4} className="py-6 text-center text-black/40">
+                                            No users found
+                                        </td>
+                                    </tr>
+                                )}
+
+                                {loading &&
+                                    [...Array(5)].map((_, i) => (
+                                        <tr key={i} className="animate-pulse bg-gray-100 h-12"></tr>
+                                    ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {/* MOBILE CARDS */}
+                <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                    {!loading &&
+                        users.map((u, i) => (
+                            <div key={i} className="border border-black/10 rounded-2xl p-4 bg-white shadow-sm">
+                                <h2 className="text-lg font-semibold">
+                                    {safe(u.first_name)} {safe(u.last_name)}
+                                </h2>
+
+                                <div className="text-sm text-black/80 mt-3 space-y-2">
+                                    <p>📞 {safe(u.mobile_no)}</p>
+                                    <p>✉️ {safe(u.email)}</p>
+
+                                    <p className="mt-2">
+                                        🏢{" "}
+                                        {u.businesses?.length > 0 ? (
+                                            <button
+                                                onClick={() => setSelectedBusiness(u.businesses[0])}
+                                                className="text-blue-600 underline"
+                                            >
+                                                {safe(u.businesses[0].business_name)}
+                                            </button>
+                                        ) : (
+                                            "N/A"
+                                        )}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                </div>
+
+                {/* PAGINATION */}
+                <div className="flex justify-between items-center mt-8 px-2">
+                    <button
+                        disabled={pageInfo.page <= 1}
+                        onClick={() => gotoPage(pageInfo.page - 1)}
+                        className={`px-5 py-2 rounded-xl ${pageInfo.page <= 1
+                            ? "bg-black/10 text-black/40 cursor-not-allowed"
+                            : "bg-black text-white hover:bg-black/90"
+                            }`}
+                    >
+                        ← Previous
+                    </button>
+
+                    <span className="text-black font-medium">
+                        Page {pageInfo.page} / {pageInfo.pages}
+                    </span>
+
+                    <button
+                        disabled={pageInfo.page >= pageInfo.pages}
+                        onClick={() => gotoPage(pageInfo.page + 1)}
+                        className={`px-5 py-2 rounded-xl ${pageInfo.page >= pageInfo.pages
+                            ? "bg-black/10 text-black/40 cursor-not-allowed"
+                            : "bg-black text-white hover:bg-black/90"
+                            }`}
+                    >
+                        Next →
+                    </button>
+                </div>
             </div>
-          </div>
+
+            {/* BUSINESS MODAL */}
+            {selectedBusiness && (
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md relative">
+
+                        <button
+                            onClick={() => setSelectedBusiness(null)}
+                            className="absolute top-3 right-3 text-gray-500 hover:text-black text-xl"
+                        >
+                            ✕
+                        </button>
+
+                        <h2 className="text-xl font-semibold mb-4">
+                            {safe(selectedBusiness.business_name)}
+                        </h2>
+
+                        <div className="space-y-2 text-sm text-black/80">
+
+                            <p><strong>SeaNeB ID:</strong> {safe(selectedBusiness.seaneb_id)}</p>
+
+                            <p><strong>Business Legal Name:</strong> {safe(selectedBusiness.business_legal_name)}</p>
+                            <p><strong>Category:</strong> {safe(selectedBusiness.business_category)}</p>
+
+                            <p><strong>PAN Number:</strong> {safe(selectedBusiness.pan_number)}</p>
+                            <p><strong>GST Number:</strong> {safe(selectedBusiness.gst_number)}</p>
+
+                            <p><strong>Area:</strong> {safe(selectedBusiness.area)}</p>
+                            <p><strong>City:</strong> {safe(selectedBusiness.city)}</p>
+                            <p><strong>State:</strong> {safe(selectedBusiness.state)}</p>
+
+                            <p><strong>Email:</strong> {safe(selectedBusiness.email)}</p>
+                            <p><strong>Contact:</strong> {safe(selectedBusiness.contact_no)}</p>
+                            <p><strong>Website:</strong> {safe(selectedBusiness.website_url)}</p>
+
+                            <p>
+                                <strong>Full Address:</strong><br />
+                                {safe(selectedBusiness.address_line_1)},<br />
+                                {safe(selectedBusiness.area)}, {safe(selectedBusiness.city)},<br />
+                                {safe(selectedBusiness.state)} - {safe(selectedBusiness.zip_code)}
+                            </p>
+
+                        </div>
+
+                    </div>
+                </div>
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
 };
 
 export default UsersListPage;
