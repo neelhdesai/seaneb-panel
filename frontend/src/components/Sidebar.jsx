@@ -37,13 +37,13 @@ export default function SidebarLayout() {
       { to: "/register-business-no-payment", label: "Register Business", icon: <Building2 /> },
       { to: "/showcase-add", label: "Add Showcase", icon: <PlusSquare /> },
       { to: "/get-showcase", label: "Showcase List", icon: <ListChecks /> },
+      { to: "/users-list", label: "Users List", icon: <User /> }
     );
   } else if (userRole === "consultant") {
     navItems.push(
       { to: "/business-register", label: "Business Register", icon: <Briefcase /> },
       { to: "/my-business", label: "My Business", icon: <Handshake /> },
-      { to: "/how-app-works", label: "How App Works", icon: <BookOpen /> }
-      ,
+      { to: "/how-app-works", label: "How App Works", icon: <BookOpen /> },
       { to: "/payout-structure", label: "Payout Structure", icon: <IndianRupee /> },
       { to: "/my-profile", label: "My Profile", icon: <User /> },
       { to: "/change-password", label: "Change Password", icon: <KeyRound /> },
@@ -55,6 +55,10 @@ export default function SidebarLayout() {
       { to: "/register-business-no-payment", label: "Register Business", icon: <Building2 /> },
       { to: "/showcase-add", label: "Add Showcase", icon: <PlusSquare /> },
       { to: "/get-showcase", label: "Showcase List", icon: <ListChecks /> },
+      { to: "/users-list", label: "Users List", icon: <User /> }
+
+
+
     );
   }
   const { pendingConsultants } = usePendingConsultants();
