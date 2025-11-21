@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import axios from "axios";
+import * as XLSX from "xlsx";
 
 const UsersListPage = () => {
-    const [users, setUsers] = useState([]); // sliced users for table
-    const [originalUsers, setOriginalUsers] = useState([]); // full list from API
-    const [filteredUsers, setFilteredUsers] = useState([]); // after search/filter
+    const [users, setUsers] = useState([]);
+    const [originalUsers, setOriginalUsers] = useState([]);
+    const [filteredUsers, setFilteredUsers] = useState([]);
 
     const [pageInfo, setPageInfo] = useState({
         page: 1,
@@ -20,13 +21,30 @@ const UsersListPage = () => {
 
     const [selectedBusiness, setSelectedBusiness] = useState(null);
 
+    const [selectedCategory, setSelectedCategory] = useState("");
+    const [selectedCity, setSelectedCity] = useState("");
+    const [sortBy, setSortBy] = useState("");
+
     const token = localStorage.getItem("token");
 
     const safe = (v) => (v && v !== "" ? v : "N/A");
 
-    // =============================
-    // FETCH ALL USERS (GLOBAL LOAD)
-    // =============================
+    // Extract category list
+    const categoryList = useMemo(() => {
+        const arr = originalUsers
+            .map((u) => u.businesses?.[0]?.business_category)
+            .filter(Boolean);
+        return [...new Set(arr)];
+    }, [originalUsers]);
+
+    // Extract city list
+    const cityList = useMemo(() => {
+        const arr = originalUsers
+            .map((u) => u.businesses?.[0]?.city)
+            .filter(Boolean);
+        return [...new Set(arr)];
+    }, [originalUsers]);
+
     const fetchUsers = async () => {
         try {
             setLoading(true);
@@ -35,7 +53,7 @@ const UsersListPage = () => {
                 headers: { Authorization: `Bearer ${token}` },
                 params: {
                     page: 1,
-                    limit: 999999, // load all users at once
+                    limit: 999999,
                     start_date: startDate,
                     end_date: endDate,
                 },
@@ -44,17 +62,17 @@ const UsersListPage = () => {
             const allUsers = res.data?.data?.users || [];
 
             setOriginalUsers(allUsers);
-            setFilteredUsers(allUsers); // default full list
+            setFilteredUsers(allUsers);
 
-            const totalPages = Math.ceil(allUsers.length / 20);
+            const totalPages = Math.ceil(allUsers.length / pageInfo.limit);
 
             setPageInfo({
                 page: 1,
                 pages: totalPages,
-                limit: 20,
+                limit: pageInfo.limit,
             });
 
-            setUsers(allUsers.slice(0, 20)); // first page only
+            setUsers(allUsers.slice(0, pageInfo.limit));
         } catch (err) {
             console.error("Error fetching users:", err);
         } finally {
@@ -62,12 +80,46 @@ const UsersListPage = () => {
         }
     };
 
-    // =============================
-    // PAGINATION — USE filteredUsers
-    // =============================
+    const exportExcel = () => {
+        const data = filteredUsers.map((u) => {
+            const b = u.businesses?.[0] || {};
+
+            return {
+                Name: `${safe(u.first_name)} ${safe(u.last_name)}`,
+                Mobile: safe(u.mobile_no),
+                Email: safe(u.email),
+
+                // Business Details (Full)
+                "Business Name": safe(b.business_name),
+                "SeaNeB ID": safe(b.seaneb_id),
+                "Business Legal Name": safe(b.business_legal_name),
+                Category: safe(b.business_category),
+                "PAN Number": safe(b.pan_number),
+                "GST Number": safe(b.gst_number),
+                Area: safe(b.area),
+                City: safe(b.city),
+                State: safe(b.state),
+                "Business Email": safe(b.email),
+                "Business Contact": safe(b.contact_no),
+                "Website URL": safe(b.website_url),
+
+                // Address
+                "Address Line 1": safe(b.address_line_1),
+                "Full Address": `${safe(b.address_line_1)}, ${safe(
+                    b.area
+                )}, ${safe(b.city)}, ${safe(b.state)} - ${safe(b.zip_code)}`,
+            };
+        });
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Users");
+        XLSX.writeFile(wb, "seaneb.xlsx");
+    };
+
+
     const gotoPage = (page) => {
         const { limit } = pageInfo;
-
         const start = (page - 1) * limit;
         const end = start + limit;
 
@@ -79,33 +131,81 @@ const UsersListPage = () => {
         setUsers(filteredUsers.slice(start, end));
     };
 
-    // =============================
-    // SEARCH GLOBALLY
-    // =============================
-    const handleSearch = (value) => {
-        setSearch(value);
+    const clearFilters = () => {
+        setSearch("");
+        setStartDate("");
+        setEndDate("");
+        setSelectedCategory("");
+        setSelectedCity("");
+        setSortBy("");
 
-        let list = originalUsers;
+        setPageInfo({
+            page: 1,
+            pages: Math.ceil(originalUsers.length / 20) || 1,
+            limit: 20,
+        });
 
-        if (value.trim()) {
-            list = originalUsers.filter((u) =>
-                `${u.first_name} ${u.last_name}`
-                    .toLowerCase()
-                    .includes(value.toLowerCase())
+        setFilteredUsers(originalUsers);
+        setUsers(originalUsers.slice(0, 20));
+    };
+
+    useEffect(() => {
+        let list = [...originalUsers];
+
+        const q = search.trim().toLowerCase();
+        if (q) {
+            list = list.filter((u) => {
+                const fullName = `${u.first_name} ${u.last_name}`.toLowerCase();
+                const email = (u.email || "").toLowerCase();
+                const mobile = (u.mobile_no || "").toLowerCase();
+                const businessName = (u.businesses?.[0]?.business_name || "").toLowerCase();
+                return (
+                    fullName.includes(q) ||
+                    email.includes(q) ||
+                    mobile.includes(q) ||
+                    businessName.includes(q)
+                );
+            });
+        }
+
+        if (selectedCategory) {
+            list = list.filter(
+                (u) => u.businesses?.[0]?.business_category === selectedCategory
             );
         }
 
-        setFilteredUsers(list);
+        if (selectedCity) {
+            list = list.filter(
+                (u) => u.businesses?.[0]?.city === selectedCity
+            );
+        }
 
-        const pages = Math.ceil(list.length / 20);
+        if (sortBy === "name_asc") {
+            list = list.sort((a, b) => a.first_name.localeCompare(b.first_name));
+        }
+
+        if (sortBy === "name_desc") {
+            list = list.sort((a, b) => b.first_name.localeCompare(a.first_name));
+        }
+
+        const pages = Math.ceil(list.length / pageInfo.limit) || 1;
+
+        setFilteredUsers(list);
+        setPageInfo((prev) => ({ ...prev, page: 1, pages }));
+        setUsers(list.slice(0, pageInfo.limit));
+    }, [search, selectedCategory, selectedCity, sortBy, originalUsers, pageInfo.limit]);
+
+    const changeLimit = (limit) => {
+        const newLimit = Number(limit);
+        const pages = Math.ceil(filteredUsers.length / newLimit) || 1;
 
         setPageInfo({
             page: 1,
             pages,
-            limit: 20,
+            limit: newLimit,
         });
 
-        setUsers(list.slice(0, 20)); // first page of filtered list
+        setUsers(filteredUsers.slice(0, newLimit));
     };
 
     useEffect(() => {
@@ -113,167 +213,214 @@ const UsersListPage = () => {
     }, []);
 
     return (
-        <div className="min-h-screen bg-white p-3 sm:p-5 flex justify-center">
+        <div className="min-h-screen bg-white p-3 sm:p-5">
             <div className="w-full max-w-6xl mx-auto">
 
-                <h1 className="text-2xl sm:text-3xl font-semibold text-black mb-6 text-center">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold text-black mb-6 text-center">
                     Users Directory
                 </h1>
 
                 {/* FILTERS */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 mb-4">
                     <input
                         value={search}
-                        onChange={(e) => handleSearch(e.target.value)}
-                        placeholder="Search users..."
-                        className="w-full px-4 py-2.5 border border-black/20 rounded-xl focus:ring-2 focus:ring-black"
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Search name, email, mobile, business..."
+                        className="w-full px-3 py-2 border border-black/20 rounded-lg text-sm"
                     />
 
                     <input
                         type="date"
+                        value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
-                        className="w-full px-4 py-2.5 border border-black/20 rounded-xl"
+                        className="w-full px-3 py-2 border border-black/20 rounded-lg text-sm"
                     />
 
                     <input
                         type="date"
+                        value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
-                        className="w-full px-4 py-2.5 border border-black/20 rounded-xl"
+                        className="w-full px-3 py-2 border border-black/20 rounded-lg text-sm"
                     />
                 </div>
 
-                <button
-                    onClick={() => fetchUsers()}
-                    className="w-full sm:w-auto px-6 py-3 bg-black text-white rounded-xl hover:bg-black/80 mb-6"
-                >
-                    Apply Filter
-                </button>
+                {/* ADVANCED FILTERS */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 mb-4">
+                    <select
+                        value={selectedCategory}
+                        onChange={(e) => setSelectedCategory(e.target.value)}
+                        className="w-full px-3 py-2 border border-black/20 rounded-lg text-sm"
+                    >
+                        <option value="">All Categories</option>
+                        {categoryList.map((c, i) => (
+                            <option key={i} value={c}>{c}</option>
+                        ))}
+                    </select>
 
-                {/* DESKTOP TABLE */}
-                <div className="hidden md:block w-full overflow-x-auto">
-                    <div className="min-w-[850px] rounded-xl overflow-hidden border border-black/10 shadow">
-                        <table className="w-full table-auto text-left">
-                            <thead className="bg-black text-white">
-                                <tr>
-                                    <th className="px-5 py-4">Name</th>
-                                    <th className="px-5 py-4">Mobile</th>
-                                    <th className="px-5 py-4">Email</th>
-                                    <th className="px-5 py-4">Business</th>
-                                    
-                                </tr>
-                            </thead>
+                    <select
+                        value={selectedCity}
+                        onChange={(e) => setSelectedCity(e.target.value)}
+                        className="w-full px-3 py-2 border border-black/20 rounded-lg text-sm"
+                    >
+                        <option value="">All Cities</option>
+                        {cityList.map((c, i) => (
+                            <option key={i} value={c}>{c}</option>
+                        ))}
+                    </select>
 
-                            <tbody>
-                                {!loading &&
-                                    users.map((u, i) => (
-                                        <tr key={i} className="border-t border-black/10 hover:bg-black/5">
+                    <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        className="w-full px-3 py-2 border border-black/20 rounded-lg text-sm"
+                    >
+                        <option value="">Sort</option>
+                        <option value="name_asc">Name A → Z</option>
+                        <option value="name_desc">Name Z → A</option>
+                    </select>
+                </div>
 
-                                            <td className="px-5 py-4 font-medium">
-                                                {safe(u.first_name)} {safe(u.last_name)}
-                                            </td>
+                {/* BUTTONS */}
+                <div className="flex flex-wrap gap-2 sm:gap-3 mb-4">
+                    <button
+                        onClick={fetchUsers}
+                        className="px-4 py-2 bg-black text-white rounded-lg text-sm"
+                    >
+                        Apply
+                    </button>
 
-                                            <td className="px-5 py-4">{safe(u.mobile_no)}</td>
+                    <button
+                        onClick={exportExcel}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm"
+                    >
+                        Excel
+                    </button>
 
-                                            <td className="px-5 py-4 break-all">{safe(u.email)}</td>
+                    <select
+                        value={pageInfo.limit}
+                        onChange={(e) => changeLimit(e.target.value)}
+                        className="px-3 py-2 border border-black/20 rounded-lg text-sm"
+                    >
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                    </select>
 
-                                            <td className="px-5 py-4">
-                                                {u.businesses?.length > 0 ? (
-                                                    <button
-                                                        onClick={() => setSelectedBusiness(u.businesses[0])}
-                                                        className="text-blue-600 cursor-pointer"
-                                                    >
-                                                        {safe(u.businesses[0].business_name)}
-                                                    </button>
-                                                ) : (
-                                                    "N/A"
-                                                )}
-                                            </td>
+                    <button
+                        onClick={clearFilters}
+                        className="px-4 py-2 bg-gray-200 text-black rounded-lg text-sm"
+                    >
+                        Clear
+                    </button>
 
-                                        </tr>
-                                    ))}
-
-                                {!loading && users.length === 0 && (
-                                    <tr>
-                                        <td colSpan={4} className="py-6 text-center text-black/40">
-                                            No users found
-                                        </td>
-                                    </tr>
-                                )}
-
-                                {loading &&
-                                    [...Array(5)].map((_, i) => (
-                                        <tr key={i} className="animate-pulse bg-gray-100 h-12"></tr>
-                                    ))}
-                            </tbody>
-                        </table>
+                    <div className="ml-auto text-xs text-black/60 py-2">
+                        Total: {filteredUsers.length}
                     </div>
                 </div>
 
+                {/* TABLE (NO HORIZONTAL SCROLL) */}
+                <div className="w-full">
+                    <table className="w-full table-auto text-left border border-black/10 rounded-lg text-sm">
+                        <thead className="bg-black text-white text-xs sm:text-sm">
+                            <tr>
+                                <th className="px-2 py-2">Name</th>
+                                <th className="px-2 py-2">Mobile</th>
+                                <th className="px-2 py-2">Email</th>
+                                <th className="px-2 py-2">Business</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {!loading &&
+                                users.map((u, i) => (
+                                    <tr key={i} className="border-t text-xs sm:text-sm">
+                                        <td className="px-2 py-2 break-words max-w-[150px]">
+                                            {safe(u.first_name)} {safe(u.last_name)}
+                                        </td>
+
+                                        <td className="px-2 py-2 break-words">{safe(u.mobile_no)}</td>
+
+                                        <td className="px-2 py-2 break-words max-w-[150px]">
+                                            {safe(u.email)}
+                                        </td>
+
+                                        <td className="px-2 py-2 break-words">
+                                            {u.businesses?.length > 0 ? (
+                                                <button
+                                                    onClick={() => setSelectedBusiness(u.businesses[0])}
+                                                    className="text-blue-600 underline text-xs"
+                                                >
+                                                    {safe(u.businesses[0].business_name)}
+                                                </button>
+                                            ) : "N/A"}
+                                        </td>
+                                    </tr>
+                                ))}
+
+                            {!loading && users.length === 0 && (
+                                <tr>
+                                    <td colSpan={4} className="py-4 text-center text-black/40">
+                                        No data found
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+
                 {/* MOBILE CARDS */}
-                <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                <div className="md:hidden grid grid-cols-1 gap-3 mt-4">
                     {!loading &&
                         users.map((u, i) => (
-                            <div key={i} className="border border-black/10 rounded-2xl p-4 bg-white shadow-sm">
-                                <h2 className="text-lg font-semibold">
-                                    {safe(u.first_name)} {safe(u.last_name)}
-                                </h2>
+                            <div key={i} className="border border-black/10 rounded-xl p-3 bg-white text-sm">
+                                <h2 className="font-semibold">{safe(u.first_name)} {safe(u.last_name)}</h2>
 
-                                <div className="text-sm text-black/80 mt-3 space-y-2">
-                                    <p>📞 {safe(u.mobile_no)}</p>
-                                    <p>✉️ {safe(u.email)}</p>
+                                <p className="mt-1">📞 {safe(u.mobile_no)}</p>
+                                <p>✉️ {safe(u.email)}</p>
 
-                                    <p className="mt-2">
-                                        🏢{" "}
-                                        {u.businesses?.length > 0 ? (
-                                            <button
-                                                onClick={() => setSelectedBusiness(u.businesses[0])}
-                                                className="text-blue-600 underline"
-                                            >
-                                                {safe(u.businesses[0].business_name)}
-                                            </button>
-                                        ) : (
-                                            "N/A"
-                                        )}
-                                    </p>
-                                </div>
+                                <p className="mt-1">
+                                    🏢{" "}
+                                    {u.businesses?.length > 0 ? (
+                                        <button
+                                            onClick={() => setSelectedBusiness(u.businesses[0])}
+                                            className="text-blue-600 underline"
+                                        >
+                                            {safe(u.businesses[0].business_name)}
+                                        </button>
+                                    ) : "N/A"}
+                                </p>
                             </div>
                         ))}
                 </div>
 
                 {/* PAGINATION */}
-                <div className="flex justify-between items-center mt-8 px-2">
+                <div className="flex justify-between items-center mt-6 text-sm">
                     <button
                         disabled={pageInfo.page <= 1}
                         onClick={() => gotoPage(pageInfo.page - 1)}
-                        className={`px-5 py-2 rounded-xl ${pageInfo.page <= 1
-                            ? "bg-black/10 text-black/40 cursor-not-allowed"
-                            : "bg-black text-white hover:bg-black/90"
-                            }`}
+                        className="px-3 py-2 rounded-lg bg-black text-white disabled:bg-gray-300"
                     >
-                        ← Previous
+                        ← Prev
                     </button>
 
-                    <span className="text-black font-medium">
+                    <span>
                         Page {pageInfo.page} / {pageInfo.pages}
                     </span>
 
                     <button
                         disabled={pageInfo.page >= pageInfo.pages}
                         onClick={() => gotoPage(pageInfo.page + 1)}
-                        className={`px-5 py-2 rounded-xl ${pageInfo.page >= pageInfo.pages
-                            ? "bg-black/10 text-black/40 cursor-not-allowed"
-                            : "bg-black text-white hover:bg-black/90"
-                            }`}
+                        className="px-3 py-2 rounded-lg bg-black text-white disabled:bg-gray-300"
                     >
                         Next →
                     </button>
                 </div>
             </div>
 
-            {/* BUSINESS MODAL */}
+            {/* BUSINESS MODAL (unchanged) */}
             {selectedBusiness && (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md relative">
+                    <div className="bg-white rounded-2xl shadow-xl p-4 w-full max-w-sm sm:max-w-md relative text-sm">
 
                         <button
                             onClick={() => setSelectedBusiness(null)}
@@ -282,37 +429,30 @@ const UsersListPage = () => {
                             ✕
                         </button>
 
-                        <h2 className="text-xl font-semibold mb-4">
+                        <h2 className="text-lg font-semibold mb-3">
                             {safe(selectedBusiness.business_name)}
                         </h2>
 
-                        <div className="space-y-2 text-sm text-black/80">
-
+                        <div className="space-y-2 text-black/80">
                             <p><strong>SeaNeB ID:</strong> {safe(selectedBusiness.seaneb_id)}</p>
-
                             <p><strong>Business Legal Name:</strong> {safe(selectedBusiness.business_legal_name)}</p>
                             <p><strong>Category:</strong> {safe(selectedBusiness.business_category)}</p>
-
-                            <p><strong>PAN Number:</strong> {safe(selectedBusiness.pan_number)}</p>
-                            <p><strong>GST Number:</strong> {safe(selectedBusiness.gst_number)}</p>
-
+                            <p><strong>PAN:</strong> {safe(selectedBusiness.pan_number)}</p>
+                            <p><strong>GST:</strong> {safe(selectedBusiness.gst_number)}</p>
                             <p><strong>Area:</strong> {safe(selectedBusiness.area)}</p>
                             <p><strong>City:</strong> {safe(selectedBusiness.city)}</p>
                             <p><strong>State:</strong> {safe(selectedBusiness.state)}</p>
-
                             <p><strong>Email:</strong> {safe(selectedBusiness.email)}</p>
                             <p><strong>Contact:</strong> {safe(selectedBusiness.contact_no)}</p>
                             <p><strong>Website:</strong> {safe(selectedBusiness.website_url)}</p>
 
                             <p>
-                                <strong>Full Address:</strong><br />
+                                <strong>Address:</strong><br />
                                 {safe(selectedBusiness.address_line_1)},<br />
                                 {safe(selectedBusiness.area)}, {safe(selectedBusiness.city)},<br />
                                 {safe(selectedBusiness.state)} - {safe(selectedBusiness.zip_code)}
                             </p>
-
                         </div>
-
                     </div>
                 </div>
             )}
