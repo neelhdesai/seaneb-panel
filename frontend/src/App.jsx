@@ -21,6 +21,7 @@ import HowAppWorks from "./components/HowAppWorks";
 import AddShowcase from "./components/AddShowcase";
 import ShowCaseList from "./components/ShowCaseList";
 import UsersListPage from "./components/UsersListPage";
+import DashboardKPI from "./components/DashboardKPI";
 
 function App() {
   return (
@@ -94,6 +95,20 @@ function App() {
                 <Sidebar />
                 <main className="flex-1 p-4">
                   <UsersListPage />
+                </main>
+              </div>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/dashboard"
+          element={
+            <PrivateRoute allowedRoles={["admin", "dataentry"]}>
+              <div className="flex min-h-screen bg-gray-100">
+                <Sidebar />
+                <main className="flex-1 p-4">
+                  <DashboardKPI />
                 </main>
               </div>
             </PrivateRoute>
