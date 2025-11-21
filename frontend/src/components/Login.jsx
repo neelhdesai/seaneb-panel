@@ -55,7 +55,7 @@ try {
       navigate("/business-register");
       break;
     case "dataentry":
-      navigate("/register-user");
+      navigate("/dashboard");
       break;
     default:
       navigate("/login");
