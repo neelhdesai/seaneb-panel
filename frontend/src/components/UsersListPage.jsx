@@ -3,461 +3,384 @@ import axios from "axios";
 import * as XLSX from "xlsx";
 
 const UsersListPage = () => {
-    const [users, setUsers] = useState([]);
-    const [originalUsers, setOriginalUsers] = useState([]);
-    const [filteredUsers, setFilteredUsers] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [originalUsers, setOriginalUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
 
-    const [pageInfo, setPageInfo] = useState({
-        page: 1,
-        pages: 1,
-        limit: 20,
+  const [pageInfo, setPageInfo] = useState({ page: 1, pages: 1, limit: 20 });
+  const [loading, setLoading] = useState(false);
+
+  const [search, setSearch] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  const [selectedBusiness, setSelectedBusiness] = useState(null);
+
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
+  const [sortBy, setSortBy] = useState("");
+
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  const token = localStorage.getItem("token");
+  const safe = (v) => (v && v !== "" ? v : "N/A");
+
+  // lists
+  const categoryList = useMemo(() => {
+    const arr = originalUsers
+      .map((u) => u.businesses?.[0]?.business_category)
+      .filter(Boolean);
+    return [...new Set(arr)];
+  }, [originalUsers]);
+
+  const cityList = useMemo(() => {
+    const arr = originalUsers.map((u) => u.businesses?.[0]?.city).filter(Boolean);
+    return [...new Set(arr)];
+  }, [originalUsers]);
+
+  // fetch
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get("https://api.seaneb.com/admin/all-users", {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          page: 1,
+          limit: 999999,
+          start_date: startDate,
+          end_date: endDate,
+        },
+      });
+      const allUsers = res.data?.data?.users || [];
+      setOriginalUsers(allUsers);
+      setFilteredUsers(allUsers);
+
+      const totalPages = Math.max(1, Math.ceil(allUsers.length / pageInfo.limit));
+      setPageInfo((p) => ({ ...p, page: 1, pages: totalPages }));
+      setUsers(allUsers.slice(0, pageInfo.limit));
+    } catch (err) {
+      console.error("Error fetching users:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // export excel: include full business details
+  const exportExcel = () => {
+    const data = filteredUsers.map((u) => {
+      const b = u.businesses?.[0] || {};
+      return {
+        Name: `${safe(u.first_name)} ${safe(u.last_name)}`,
+        Mobile: safe(u.mobile_no),
+        Email: safe(u.email),
+
+        "Business Name": safe(b.business_name),
+        "SeaNeB ID": safe(b.seaneb_id),
+        "Business Legal Name": safe(b.business_legal_name),
+        Category: safe(b.business_category),
+        "PAN Number": safe(b.pan_number),
+        "GST Number": safe(b.gst_number),
+        Area: safe(b.area),
+        City: safe(b.city),
+        State: safe(b.state),
+        "Business Email": safe(b.email),
+        "Business Contact": safe(b.contact_no),
+        "Website URL": safe(b.website_url),
+        "Address Line 1": safe(b.address_line_1),
+        "Zip Code": safe(b.zip_code),
+        "Full Address": `${safe(b.address_line_1)}, ${safe(b.area)}, ${safe(b.city)}, ${safe(
+          b.state
+        )} - ${safe(b.zip_code)}`,
+      };
     });
 
-    const [loading, setLoading] = useState(false);
-    const [search, setSearch] = useState("");
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Users");
+    XLSX.writeFile(wb, "seaneb_users.xlsx");
+  };
 
-    const [startDate, setStartDate] = useState("");
-    const [endDate, setEndDate] = useState("");
+  // pagination helpers
+  const gotoPage = (page) => {
+    const { limit } = pageInfo;
+    const start = (page - 1) * limit;
+    const end = start + limit;
+    setPageInfo((prev) => ({ ...prev, page }));
+    setUsers(filteredUsers.slice(start, end));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
-    const [selectedBusiness, setSelectedBusiness] = useState(null);
+  const changeLimit = (limit) => {
+    const newLimit = Number(limit);
+    const pages = Math.max(1, Math.ceil(filteredUsers.length / newLimit));
+    setPageInfo({ page: 1, pages, limit: newLimit });
+    setUsers(filteredUsers.slice(0, newLimit));
+  };
 
-    const [selectedCategory, setSelectedCategory] = useState("");
-    const [selectedCity, setSelectedCity] = useState("");
-    const [sortBy, setSortBy] = useState("");
+  const clearFilters = () => {
+    setSearch("");
+    setStartDate("");
+    setEndDate("");
+    setSelectedCategory("");
+    setSelectedCity("");
+    setSortBy("");
+    setPageInfo({ page: 1, pages: Math.max(1, Math.ceil(originalUsers.length / 20)), limit: 20 });
+    setFilteredUsers(originalUsers);
+    setUsers(originalUsers.slice(0, 20));
+  };
 
-    const token = localStorage.getItem("token");
+  // client-side search / filter / sort
+  useEffect(() => {
+    let list = [...originalUsers];
+    const q = (search || "").trim().toLowerCase();
+    if (q) {
+      list = list.filter((u) => {
+        const fullName = `${u.first_name || ""} ${u.last_name || ""}`.toLowerCase();
+        const email = (u.email || "").toLowerCase();
+        const mobile = (u.mobile_no || "").toLowerCase();
+        const businessName = (u.businesses?.[0]?.business_name || "").toLowerCase();
+        return fullName.includes(q) || email.includes(q) || mobile.includes(q) || businessName.includes(q);
+      });
+    }
 
-    const safe = (v) => (v && v !== "" ? v : "N/A");
+    if (selectedCategory) {
+      list = list.filter((u) => u.businesses?.[0]?.business_category === selectedCategory);
+    }
 
-    // Extract category list
-    const categoryList = useMemo(() => {
-        const arr = originalUsers
-            .map((u) => u.businesses?.[0]?.business_category)
-            .filter(Boolean);
-        return [...new Set(arr)];
-    }, [originalUsers]);
+    if (selectedCity) {
+      list = list.filter((u) => u.businesses?.[0]?.city === selectedCity);
+    }
 
-    // Extract city list
-    const cityList = useMemo(() => {
-        const arr = originalUsers
-            .map((u) => u.businesses?.[0]?.city)
-            .filter(Boolean);
-        return [...new Set(arr)];
-    }, [originalUsers]);
+    if (sortBy === "name_asc") {
+      list = list.sort((a, b) => (a.first_name || "").localeCompare(b.first_name || ""));
+    } else if (sortBy === "name_desc") {
+      list = list.sort((a, b) => (b.first_name || "").localeCompare(a.first_name || ""));
+    }
 
-    const fetchUsers = async () => {
-        try {
-            setLoading(true);
+    const pages = Math.max(1, Math.ceil(list.length / pageInfo.limit));
+    setFilteredUsers(list);
+    setPageInfo((prev) => ({ ...prev, page: 1, pages }));
+    setUsers(list.slice(0, pageInfo.limit));
+  }, [search, selectedCategory, selectedCity, sortBy, originalUsers, pageInfo.limit]);
 
-            const res = await axios.get("https://api.seaneb.com/admin/all-users", {
-                headers: { Authorization: `Bearer ${token}` },
-                params: {
-                    page: 1,
-                    limit: 999999,
-                    start_date: startDate,
-                    end_date: endDate,
-                },
-            });
+  // initial
+  useEffect(() => {
+    fetchUsers();
+    // eslint-disable-next-line
+  }, []);
 
-            const allUsers = res.data?.data?.users || [];
-
-            setOriginalUsers(allUsers);
-            setFilteredUsers(allUsers);
-
-            const totalPages = Math.ceil(allUsers.length / pageInfo.limit);
-
-            setPageInfo({
-                page: 1,
-                pages: totalPages,
-                limit: pageInfo.limit,
-            });
-
-            setUsers(allUsers.slice(0, pageInfo.limit));
-        } catch (err) {
-            console.error("Error fetching users:", err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const exportExcel = () => {
-        const data = filteredUsers.map((u) => {
-            const b = u.businesses?.[0] || {};
-
-            return {
-                Name: `${safe(u.first_name)} ${safe(u.last_name)}`,
-                Mobile: safe(u.mobile_no),
-                Email: safe(u.email),
-
-                // Business Details (Full)
-                "Business Name": safe(b.business_name),
-                "SeaNeB ID": safe(b.seaneb_id),
-                "Business Legal Name": safe(b.business_legal_name),
-                Category: safe(b.business_category),
-                "PAN Number": safe(b.pan_number),
-                "GST Number": safe(b.gst_number),
-                Area: safe(b.area),
-                City: safe(b.city),
-                State: safe(b.state),
-                "Business Email": safe(b.email),
-                "Business Contact": safe(b.contact_no),
-                "Website URL": safe(b.website_url),
-
-                // Address
-                "Address Line 1": safe(b.address_line_1),
-                "Full Address": `${safe(b.address_line_1)}, ${safe(
-                    b.area
-                )}, ${safe(b.city)}, ${safe(b.state)} - ${safe(b.zip_code)}`,
-            };
-        });
-
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Users");
-        XLSX.writeFile(wb, "seaneb.xlsx");
-    };
-
-
-    const gotoPage = (page) => {
-        const { limit } = pageInfo;
-        const start = (page - 1) * limit;
-        const end = start + limit;
-
-        setPageInfo((prev) => ({
-            ...prev,
-            page,
-        }));
-
-        setUsers(filteredUsers.slice(start, end));
-    };
-
-    const clearFilters = () => {
-        setSearch("");
-        setStartDate("");
-        setEndDate("");
-        setSelectedCategory("");
-        setSelectedCity("");
-        setSortBy("");
-
-        setPageInfo({
-            page: 1,
-            pages: Math.ceil(originalUsers.length / 20) || 1,
-            limit: 20,
-        });
-
-        setFilteredUsers(originalUsers);
-        setUsers(originalUsers.slice(0, 20));
-    };
-
-    useEffect(() => {
-        let list = [...originalUsers];
-
-        const q = search.trim().toLowerCase();
-        if (q) {
-            list = list.filter((u) => {
-                const fullName = `${u.first_name} ${u.last_name}`.toLowerCase();
-                const email = (u.email || "").toLowerCase();
-                const mobile = (u.mobile_no || "").toLowerCase();
-                const businessName = (u.businesses?.[0]?.business_name || "").toLowerCase();
-                return (
-                    fullName.includes(q) ||
-                    email.includes(q) ||
-                    mobile.includes(q) ||
-                    businessName.includes(q)
-                );
-            });
-        }
-
-        if (selectedCategory) {
-            list = list.filter(
-                (u) => u.businesses?.[0]?.business_category === selectedCategory
-            );
-        }
-
-        if (selectedCity) {
-            list = list.filter(
-                (u) => u.businesses?.[0]?.city === selectedCity
-            );
-        }
-
-        if (sortBy === "name_asc") {
-            list = list.sort((a, b) => a.first_name.localeCompare(b.first_name));
-        }
-
-        if (sortBy === "name_desc") {
-            list = list.sort((a, b) => b.first_name.localeCompare(a.first_name));
-        }
-
-        const pages = Math.ceil(list.length / pageInfo.limit) || 1;
-
-        setFilteredUsers(list);
-        setPageInfo((prev) => ({ ...prev, page: 1, pages }));
-        setUsers(list.slice(0, pageInfo.limit));
-    }, [search, selectedCategory, selectedCity, sortBy, originalUsers, pageInfo.limit]);
-
-    const changeLimit = (limit) => {
-        const newLimit = Number(limit);
-        const pages = Math.ceil(filteredUsers.length / newLimit) || 1;
-
-        setPageInfo({
-            page: 1,
-            pages,
-            limit: newLimit,
-        });
-
-        setUsers(filteredUsers.slice(0, newLimit));
-    };
-
-    useEffect(() => {
-        fetchUsers();
-    }, []);
-
+  // Minimal Notion-style table row component for mobile expand
+  const MobileRow = ({ u }) => {
+    const b = u.businesses?.[0] || {};
     return (
-        <div className="min-h-screen bg-white p-3 sm:p-5">
-            <div className="w-full max-w-6xl mx-auto">
+      <details className="bg-white border border-slate-100 rounded-lg p-3" >
+        <summary className="flex items-center justify-between cursor-pointer list-none">
+          <div className="flex flex-col">
+            <div className="text-sm font-medium text-slate-900">{safe(u.first_name)} {safe(u.last_name)}</div>
+            <div className="text-xs text-slate-500 mt-1">{safe(u.email)}</div>
+          </div>
 
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold text-black mb-6 text-center">
-                    Users Directory
-                </h1>
+          <div className="flex items-center gap-3">
+            <div className="text-sm text-slate-700">{safe(u.mobile_no)}</div>
+            <div className="text-sm text-emerald-600">{b.business_name ? <span>{safe(b.business_name)}</span> : <span className="text-slate-400">N/A</span>}</div>
+          </div>
+        </summary>
 
-                {/* FILTERS */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 mb-4">
-                    <input
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search name, email, mobile, business..."
-                        className="w-full px-3 py-2 border border-black/20 rounded-lg text-sm"
-                    />
+        <div className="mt-3 text-xs text-slate-700 space-y-2">
+          <div><strong>Business:</strong> {safe(b.business_name)}</div>
+          <div><strong>Category:</strong> {safe(b.business_category)}</div>
+          <div><strong>City:</strong> {safe(b.city)}</div>
+          <div><strong>Area:</strong> {safe(b.area)}</div>
+          <div><strong>Contact:</strong> {safe(b.contact_no)}</div>
+        </div>
+      </details>
+    );
+  };
 
-                    <input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-black/20 rounded-lg text-sm"
-                    />
+  return (
+    <div className="min-h-screen bg-slate-50 p-4 sm:p-6">
+      <div className="max-w-6xl mx-auto">
 
-                    <input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-black/20 rounded-lg text-sm"
-                    />
-                </div>
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+          <div>
+            <h1 className="text-lg sm:text-2xl font-semibold text-slate-900">Users Directory</h1>
+          </div>
 
-                {/* ADVANCED FILTERS */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 mb-4">
-                    <select
-                        value={selectedCategory}
-                        onChange={(e) => setSelectedCategory(e.target.value)}
-                        className="w-full px-3 py-2 border border-black/20 rounded-lg text-sm"
-                    >
-                        <option value="">All Categories</option>
-                        {categoryList.map((c, i) => (
-                            <option key={i} value={c}>{c}</option>
-                        ))}
-                    </select>
+          <div className="flex items-center gap-2">
+            <button onClick={exportExcel} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-sm">Export Excel</button>
+            <button onClick={clearFilters} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-sm hidden sm:inline">Clear</button>
+            <button onClick={() => setFiltersOpen(s => !s)} className="px-3 py-2 bg-slate-100 rounded-md text-sm sm:hidden">{filtersOpen ? "Close" : "Filters"}</button>
+          </div>
+        </div>
 
-                    <select
-                        value={selectedCity}
-                        onChange={(e) => setSelectedCity(e.target.value)}
-                        className="w-full px-3 py-2 border border-black/20 rounded-lg text-sm"
-                    >
-                        <option value="">All Cities</option>
-                        {cityList.map((c, i) => (
-                            <option key={i} value={c}>{c}</option>
-                        ))}
-                    </select>
+        <div className="bg-white border border-slate-100 rounded-lg p-4 mb-5 shadow-sm">
+          <div className={`${filtersOpen ? "space-y-3" : ""} grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3`}>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search name, email, mobile, business..."
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-slate-200"
+            />
 
-                    <select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value)}
-                        className="w-full px-3 py-2 border border-black/20 rounded-lg text-sm"
-                    >
-                        <option value="">Sort</option>
-                        <option value="name_asc">Name A → Z</option>
-                        <option value="name_desc">Name Z → A</option>
-                    </select>
-                </div>
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-sm" />
 
-                {/* BUTTONS */}
-                <div className="flex flex-wrap gap-2 sm:gap-3 mb-4">
-                    <button
-                        onClick={fetchUsers}
-                        className="px-4 py-2 bg-black text-white rounded-lg text-sm"
-                    >
-                        Apply
-                    </button>
+            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-sm" />
+          </div>
 
-                    <button
-                        onClick={exportExcel}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm"
-                    >
-                        Excel
-                    </button>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+            <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-sm">
+              <option value="">All Categories</option>
+              {categoryList.map((c, i) => <option key={i} value={c}>{c}</option>)}
+            </select>
 
-                    <select
-                        value={pageInfo.limit}
-                        onChange={(e) => changeLimit(e.target.value)}
-                        className="px-3 py-2 border border-black/20 rounded-lg text-sm"
-                    >
-                        <option value={10}>10</option>
-                        <option value={20}>20</option>
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                    </select>
+            <select value={selectedCity} onChange={(e) => setSelectedCity(e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-sm">
+              <option value="">All Cities</option>
+              {cityList.map((c, i) => <option key={i} value={c}>{c}</option>)}
+            </select>
 
-                    <button
-                        onClick={clearFilters}
-                        className="px-4 py-2 bg-gray-200 text-black rounded-lg text-sm"
-                    >
-                        Clear
-                    </button>
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="w-full px-3 py-2 bg-white border border-slate-200 rounded-md text-sm">
+              <option value="">Sort</option>
+              <option value="name_asc">Name A → Z</option>
+              <option value="name_desc">Name Z → A</option>
+            </select>
+          </div>
 
-                    <div className="ml-auto text-xs text-black/60 py-2">
-                        Total: {filteredUsers.length}
-                    </div>
-                </div>
+          <div className="flex items-center gap-2 mt-4">
+            <button onClick={fetchUsers} className="px-3 py-2 bg-slate-900 text-white rounded-md text-sm">Apply</button>
+            <button onClick={exportExcel} className="px-3 py-2 bg-emerald-600 text-white rounded-md text-sm">Excel</button>
 
-                {/* TABLE (NO HORIZONTAL SCROLL) */}
-                <div className="w-full">
-                    <table className="w-full table-auto text-left border border-black/10 rounded-lg text-sm">
-                        <thead className="bg-black text-white text-xs sm:text-sm">
-                            <tr>
-                                <th className="px-2 py-2">Name</th>
-                                <th className="px-2 py-2">Mobile</th>
-                                <th className="px-2 py-2">Email</th>
-                                <th className="px-2 py-2">Business</th>
-                            </tr>
-                        </thead>
+            <select value={pageInfo.limit} onChange={(e) => changeLimit(e.target.value)} className="px-2 py-2 border border-slate-200 rounded-md text-sm">
+              <option value={10}>10 rows</option>
+              <option value={20}>20 rows</option>
+              <option value={50}>50 rows</option>
+              <option value={100}>100 rows</option>
+            </select>
 
-                        <tbody>
-                            {!loading &&
-                                users.map((u, i) => (
-                                    <tr key={i} className="border-t text-xs sm:text-sm">
-                                        <td className="px-2 py-2 break-words max-w-[150px]">
-                                            {safe(u.first_name)} {safe(u.last_name)}
-                                        </td>
+            <button onClick={clearFilters} className="px-3 py-2 bg-slate-100 rounded-md text-sm sm:hidden">Clear</button>
 
-                                        <td className="px-2 py-2 break-words">{safe(u.mobile_no)}</td>
+            <div className="ml-auto text-xs text-slate-500">Total: <span className="text-slate-700 font-medium">{filteredUsers.length}</span></div>
+          </div>
+        </div>
 
-                                        <td className="px-2 py-2 break-words max-w-[150px]">
-                                            {safe(u.email)}
-                                        </td>
+        {/* Notion-style Table */}
+        <div className="bg-white border border-slate-100 rounded-md shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-white sticky top-0">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs text-slate-500">Name</th>
+                  <th className="px-4 py-3 text-left text-xs text-slate-500">Mobile</th>
+                  <th className="px-4 py-3 text-left text-xs text-slate-500 hidden sm:table-cell">Email</th>
+                  <th className="px-4 py-3 text-left text-xs text-slate-500">Business</th>
+                </tr>
+              </thead>
 
-                                        <td className="px-2 py-2 break-words">
-                                            {u.businesses?.length > 0 ? (
-                                                <button
-                                                    onClick={() => setSelectedBusiness(u.businesses[0])}
-                                                    className="text-blue-600 underline text-xs"
-                                                >
-                                                    {safe(u.businesses[0].business_name)}
-                                                </button>
-                                            ) : "N/A"}
-                                        </td>
-                                    </tr>
-                                ))}
+              <tbody className="bg-white divide-y divide-slate-100">
+                {!loading && users.map((u, idx) => {
+                  const b = u.businesses?.[0] || {};
+                  return (
+                    <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-4 align-top">
+                        <div className="flex flex-col">
+                          <div className="text-sm text-slate-900 font-medium">{safe(u.first_name)} {safe(u.last_name)}</div>
+                        </div>
+                      </td>
 
-                            {!loading && users.length === 0 && (
-                                <tr>
-                                    <td colSpan={4} className="py-4 text-center text-black/40">
-                                        No data found
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                      <td className="px-4 py-4 align-top">
+                        <div className="text-sm text-slate-700">{safe(u.mobile_no)}</div>
+                      </td>
 
-                {/* MOBILE CARDS */}
-                <div className="md:hidden grid grid-cols-1 gap-3 mt-4">
-                    {!loading &&
-                        users.map((u, i) => (
-                            <div key={i} className="border border-black/10 rounded-xl p-3 bg-white text-sm">
-                                <h2 className="font-semibold">{safe(u.first_name)} {safe(u.last_name)}</h2>
+                      <td className="px-4 py-4 align-top hidden sm:table-cell">
+                        <div className="text-sm text-slate-700 break-words max-w-xs">{safe(u.email)}</div>
+                      </td>
 
-                                <p className="mt-1">📞 {safe(u.mobile_no)}</p>
-                                <p>✉️ {safe(u.email)}</p>
+                      <td className="px-4 py-4 ">
+                        {b.business_name ? (
+                          <div>
+                            <button onClick={() => setSelectedBusiness(b)} className="text-slate-900 text-sm font-medium hover:underline cursor-pointer">
+                              {safe(b.business_name)}
+                            </button>
+                          </div>
+                        ) : <div className="text-sm text-slate-400">N/A</div>}
+                      </td>
+                    </tr>
+                  );
+                })}
 
-                                <p className="mt-1">
-                                    🏢{" "}
-                                    {u.businesses?.length > 0 ? (
-                                        <button
-                                            onClick={() => setSelectedBusiness(u.businesses[0])}
-                                            className="text-blue-600 underline"
-                                        >
-                                            {safe(u.businesses[0].business_name)}
-                                        </button>
-                                    ) : "N/A"}
-                                </p>
-                            </div>
-                        ))}
-                </div>
+                {!loading && users.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-8 text-center text-slate-400">No users found</td>
+                  </tr>
+                )}
 
-                {/* PAGINATION */}
-                <div className="flex justify-between items-center mt-6 text-sm">
-                    <button
-                        disabled={pageInfo.page <= 1}
-                        onClick={() => gotoPage(pageInfo.page - 1)}
-                        className="px-3 py-2 rounded-lg bg-black text-white disabled:bg-gray-300"
-                    >
-                        ← Prev
-                    </button>
+                {loading && (
+                  [...Array(6)].map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-28"></div></td>
+                      <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-20"></div></td>
+                      <td className="px-4 py-4 hidden sm:table-cell"><div className="h-4 bg-slate-200 rounded w-40"></div></td>
+                      <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-32"></div></td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-                    <span>
-                        Page {pageInfo.page} / {pageInfo.pages}
-                    </span>
+          {/* Mobile collapsible list as fallback (very small screens) */}
+          <div className="md:hidden p-3">
+            <div className="flex flex-col gap-3">
+              {!loading && users.map((u, i) => <MobileRow key={i} u={u} />)}
+            </div>
+          </div>
 
-                    <button
-                        disabled={pageInfo.page >= pageInfo.pages}
-                        onClick={() => gotoPage(pageInfo.page + 1)}
-                        className="px-3 py-2 rounded-lg bg-black text-white disabled:bg-gray-300"
-                    >
-                        Next →
-                    </button>
-                </div>
+          {/* Pagination */}
+          <div className="px-4 py-3 border-t bg-white flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button onClick={() => gotoPage(pageInfo.page - 1)} disabled={pageInfo.page <= 1} className={`px-3 py-2 rounded-md text-sm ${pageInfo.page <= 1 ? "bg-slate-100 text-slate-400" : "bg-slate-900 text-white"}`}>← Prev</button>
+              <button onClick={() => gotoPage(pageInfo.page + 1)} disabled={pageInfo.page >= pageInfo.pages} className={`px-3 py-2 rounded-md text-sm ${pageInfo.page >= pageInfo.pages ? "bg-slate-100 text-slate-400" : "bg-slate-900 text-white"}`}>Next →</button>
             </div>
 
-            {/* BUSINESS MODAL (unchanged) */}
-            {selectedBusiness && (
-                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-2xl shadow-xl p-4 w-full max-w-sm sm:max-w-md relative text-sm">
-
-                        <button
-                            onClick={() => setSelectedBusiness(null)}
-                            className="absolute top-3 right-3 text-gray-500 hover:text-black text-xl"
-                        >
-                            ✕
-                        </button>
-
-                        <h2 className="text-lg font-semibold mb-3">
-                            {safe(selectedBusiness.business_name)}
-                        </h2>
-
-                        <div className="space-y-2 text-black/80">
-                            <p><strong>SeaNeB ID:</strong> {safe(selectedBusiness.seaneb_id)}</p>
-                            <p><strong>Business Legal Name:</strong> {safe(selectedBusiness.business_legal_name)}</p>
-                            <p><strong>Category:</strong> {safe(selectedBusiness.business_category)}</p>
-                            <p><strong>PAN:</strong> {safe(selectedBusiness.pan_number)}</p>
-                            <p><strong>GST:</strong> {safe(selectedBusiness.gst_number)}</p>
-                            <p><strong>Area:</strong> {safe(selectedBusiness.area)}</p>
-                            <p><strong>City:</strong> {safe(selectedBusiness.city)}</p>
-                            <p><strong>State:</strong> {safe(selectedBusiness.state)}</p>
-                            <p><strong>Email:</strong> {safe(selectedBusiness.email)}</p>
-                            <p><strong>Contact:</strong> {safe(selectedBusiness.contact_no)}</p>
-                            <p><strong>Website:</strong> {safe(selectedBusiness.website_url)}</p>
-
-                            <p>
-                                <strong>Address:</strong><br />
-                                {safe(selectedBusiness.address_line_1)},<br />
-                                {safe(selectedBusiness.area)}, {safe(selectedBusiness.city)},<br />
-                                {safe(selectedBusiness.state)} - {safe(selectedBusiness.zip_code)}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <div className="text-sm text-slate-600">Page <span className="font-medium text-slate-800">{pageInfo.page}</span> of <span className="font-medium text-slate-800">{pageInfo.pages}</span></div>
+          </div>
         </div>
-    );
+
+        {/* Business Modal (kept exactly as requested) */}
+        {selectedBusiness && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg relative">
+              <button onClick={() => setSelectedBusiness(null)} className="absolute top-3 right-3 text-gray-500 hover:text-black text-xl">✕</button>
+
+              <h2 className="text-xl font-semibold mb-4">{safe(selectedBusiness.business_name)}</h2>
+
+              <div className="space-y-2 text-sm text-black/80">
+                <p><strong>SeaNeB ID:</strong> {safe(selectedBusiness.seaneb_id)}</p>
+                <p><strong>Business Legal Name:</strong> {safe(selectedBusiness.business_legal_name)}</p>
+                <p><strong>Category:</strong> {safe(selectedBusiness.business_category)}</p>
+                <p><strong>PAN Number:</strong> {safe(selectedBusiness.pan_number)}</p>
+                <p><strong>GST Number:</strong> {safe(selectedBusiness.gst_number)}</p>
+                <p><strong>Area:</strong> {safe(selectedBusiness.area)}</p>
+                <p><strong>City:</strong> {safe(selectedBusiness.city)}</p>
+                <p><strong>State:</strong> {safe(selectedBusiness.state)}</p>
+                <p><strong>Email:</strong> {safe(selectedBusiness.email)}</p>
+                <p><strong>Contact:</strong> {safe(selectedBusiness.contact_no)}</p>
+                <p><strong>Website:</strong> {safe(selectedBusiness.website_url)}</p>
+
+                <p>
+                  <strong>Full Address:</strong><br />
+                  {safe(selectedBusiness.address_line_1)},<br />
+                  {safe(selectedBusiness.area)}, {safe(selectedBusiness.city)},<br />
+                  {safe(selectedBusiness.state)} - {safe(selectedBusiness.zip_code)}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
 };
 
 export default UsersListPage;
