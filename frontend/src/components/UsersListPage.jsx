@@ -198,8 +198,8 @@ const UsersListPage = () => {
     };
 
     return (
-        <div className="min-h-screen  p-4 sm:p-6">
-            <div className="max-w-6xl mx-auto">
+        <div className="min-h-screen p-4 sm:p-6 bg-slate-50">
+            <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-sm px-4 py-6">
 
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
@@ -246,7 +246,7 @@ const UsersListPage = () => {
                         </select>
                     </div>
 
-                    <div className="flex items-center gap-2 mt-4">
+                    <div className="flex flex-wrap gap-2 mt-4">
                         <button onClick={fetchUsers} className="px-3 py-2 bg-slate-900 text-white rounded-md text-sm">Apply</button>
                         <button onClick={exportExcel} className="px-3 py-2 bg-emerald-600 text-white rounded-md text-sm">Excel</button>
 
@@ -335,9 +335,7 @@ const UsersListPage = () => {
                         </div>
                     </div>
 
-                    {/* Pagination */}
-                    {/* Pagination */}
-                    <div className="px-4 py-3 border-t bg-white flex items-center justify-between">
+                    <div className="px-4 py-3 border-t bg-white flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-center">
 
                         {/* LEFT — First + Prev */}
                         <div className="flex items-center gap-2">
@@ -345,19 +343,19 @@ const UsersListPage = () => {
                                 onClick={() => gotoPage(1)}
                                 disabled={pageInfo.page === 1}
                                 className={`px-3 py-2 rounded-md text-sm ${pageInfo.page === 1
-                                        ? "bg-slate-100 text-slate-400"
-                                        : "bg-slate-900 text-white"
+                                    ? "bg-slate-100 text-slate-400"
+                                    : "bg-slate-900 text-white"
                                     }`}
                             >
-                                 First
+                                First
                             </button>
 
                             <button
                                 onClick={() => gotoPage(pageInfo.page - 1)}
                                 disabled={pageInfo.page <= 1}
                                 className={`px-3 py-2 rounded-md text-sm ${pageInfo.page <= 1
-                                        ? "bg-slate-100 text-slate-400"
-                                        : "bg-slate-900 text-white"
+                                    ? "bg-slate-100 text-slate-400"
+                                    : "bg-slate-900 text-white"
                                     }`}
                             >
                                 ← Prev
@@ -376,8 +374,8 @@ const UsersListPage = () => {
                                 onClick={() => gotoPage(pageInfo.page + 1)}
                                 disabled={pageInfo.page >= pageInfo.pages}
                                 className={`px-3 py-2 rounded-md text-sm ${pageInfo.page >= pageInfo.pages
-                                        ? "bg-slate-100 text-slate-400"
-                                        : "bg-slate-900 text-white"
+                                    ? "bg-slate-100 text-slate-400"
+                                    : "bg-slate-900 text-white"
                                     }`}
                             >
                                 Next →
@@ -387,8 +385,8 @@ const UsersListPage = () => {
                                 onClick={() => gotoPage(pageInfo.pages)}
                                 disabled={pageInfo.page === pageInfo.pages}
                                 className={`px-3 py-2 rounded-md text-sm ${pageInfo.page === pageInfo.pages
-                                        ? "bg-slate-100 text-slate-400"
-                                        : "bg-slate-900 text-white"
+                                    ? "bg-slate-100 text-slate-400"
+                                    : "bg-slate-900 text-white"
                                     }`}
                             >
                                 Last
